@@ -1,0 +1,58 @@
+# Build and publish qm_atlas to PyPI when a GitHub Release is published.
+#
+# Prerequisites (see readme "Setup for development" / release notes):
+#   1. All dependencies must be available on PyPI (no direct-URL/VCS
+#      dependencies), which PyPI rejects. This is already the case.
+#   2. Configure PyPI "Trusted Publishing" (OIDC) for this repository so no API
+#      token is needed:
+#      https://docs.pypi.org/trusted-publishers/
+#      Publisher: this repo, workflow file `release.yml`, environment `pypi`.
+#   3. Bump `VERSION` in src/qm_atlas/version.py and create a matching GitHub
+#      Release/tag. Published versions on PyPI are immutable.
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/qm_atlas
+    permissions:
+      # Required for Trusted Publishing (OIDC); no PyPI token needed.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

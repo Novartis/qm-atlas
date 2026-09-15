@@ -1,0 +1,164 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qm_atlas"
+dynamic = ["version"]
+description = "Molecular workflow for quantum chemistry property calculation"
+readme = "readme.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "quantum chemistry",
+    "computational chemistry",
+    "cheminformatics",
+    "drug discovery",
+    "conformer generation",
+    "COSMO-RS",
+    "xtb",
+    "molecular properties",
+]
+authors = [
+    { name = "Hagen Muenkler" },
+    { name = "Jimmy Kromann" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "rmsd",
+    "rdkit",
+    "jinja2",
+    "numpy",
+    "pandas",
+    "requests",
+    "rich",
+    "scikit-learn",
+    "scipy",
+    "tqdm",
+    "jsonargparse",
+    "more_itertools",
+    "pydantic",
+    "filelock",
+    "pyyaml",
+    "hpc-funcs",
+    "ppqm",
+    "pytest",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "autoflake",
+    "isort",
+    "matplotlib",
+    "ipywidgets",
+    "jupytext",
+    "nbconvert",
+    "nglview",
+    "pylint-pydantic",
+]
+docs = [
+    "sphinx",
+    "furo",
+    "sphinx-autodoc-typehints",
+    "sphinx-copybutton",
+    "myst-parser",
+    "sphinx-polyversion",
+    "autodoc-pydantic",
+]
+
+[project.urls]
+Homepage = "https://github.com/Novartis/qm-atlas"
+Repository = "https://github.com/Novartis/qm-atlas"
+Documentation = "https://qm-atlas.readthedocs.io"
+Issues = "https://github.com/Novartis/qm-atlas/issues"
+
+[project.scripts]
+qm-atlas = "qm_atlas.__main__:main"
+# Backwards-compatible alias; the dashed "qm-atlas" is the canonical command.
+qm_atlas = "qm_atlas.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "qm_atlas.version.VERSION"}
+
+[tool.setuptools.package-data]
+qm_atlas = [
+    "resources/*.txt",
+    "resources/*.ini",
+    "resources/*.yaml",
+    "resources/cosmo_solvents/*.cosmo",
+]
+# Ship the wrapper self-test suite so `qm_atlas test_software` works on installs.
+"qm_atlas.selftest" = [
+    "suite/*.py",
+    "suite/resources/cosmotherm/*.cosmo",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "autoflake",
+    "isort",
+    "matplotlib",
+    "ipywidgets",
+    "jupytext",
+    "nbconvert",
+    "nglview",
+    "pylint-pydantic",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+log_cli_level = "DEBUG"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "integration: end-to-end tests that run whole workflows or the CLI (slower; deselect with '-m \"not integration\"'). Independent of the require_software runtime skip.",
+]
+
+[tool.coverage.run]
+source = ["qm_atlas"]
+branch = true
+# The shipped self-test files are tests, not product code.
+omit = ["*/qm_atlas/selftest/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 99
+skip_gitignore = true
+
+[tool.black]
+line-length = 99

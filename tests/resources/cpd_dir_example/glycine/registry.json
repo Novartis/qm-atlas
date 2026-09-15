@@ -1,0 +1,27 @@
+{
+  "glycine": {
+    "name": "glycine",
+    "smiles": "NCC(=O)O",
+    "charge": 0,
+    "input_file": "input/glycine.sdf",
+    "result_files": [
+      "results/glycine_c0.sdf",
+      "results/glycine_c1.sdf",
+      "results/glycine_c2.sdf",
+      "results/glycine_c3.sdf",
+      "results/glycine_c4.sdf",
+      "results/glycine_c5.sdf",
+      "results/glycine_c6.sdf"
+    ],
+    "references": [
+      {
+        "input_file": "reference_conformations/glycine_ref_0.sdf",
+        "result_files": [
+          "results/glycine_ref_0_opt_0.sdf",
+          "results/glycine_ref_0_opt_1.sdf"
+        ]
+      }
+    ],
+    "description": ""
+  }
+}

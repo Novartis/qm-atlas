@@ -1,0 +1,108 @@
+## Pipeline for a strain energy calculation at semi-empirical (xtb) level.
+## The strain energy is estimated as the minimum energy difference between the optimized reference
+## conformers whose Optimization_RMSD is below 0.3 (such that the conformation does not move too far
+## from the original reference in the constrained optimization) and the lowest-energy conformer found
+## in the fast conformer ensemble. The energy difference is calculated from the xtb energy of each conformer.
+## We rely on g-xtb here for the single-point energy calculation.
+## If the constrained optimization leads to higher optimization RMSD values, consider changing the
+## force constants in the constrained optimization.
+## After the single-point xtb calculations, calculate_boltzmann_weights computes each
+## conformer's energy difference to the lowest-energy conformer.
+## A final aggregate_conformer_properties
+## step then takes the minimum of that energy difference over the optimized
+## reference conformers whose Optimization_RMSD is below 0.3.
+##
+## To run this pipeline, you can use the following command, which injects the necessary input and results directories:
+##
+##   qm-atlas pipeline --config fast_strain.yaml \
+##      --input_file+ <SDF file with compounds> \
+##      --reference_input_file+ <SDF file with reference conformers> \
+##      --results_directory <directory to store results> \
+
+steps:
+  - command: read_input
+
+  - command: fast_conformers
+    submission_config:
+      submit: true
+    fast_conformers_options:
+      optimization_config:
+        - backend: xtb
+          constrain: False
+          max_num_steps: 100
+          method: "2"
+          opt_level: normal
+          solvation_model: alpb
+          solvent: water
+
+  - command: add_reference_conformers
+
+  - command: optimize_reference_conformers
+    submission_config:
+      submit: true
+      cores_per_task: 2
+      max_time: 1day
+    ## Two force constants are used here. You can inspect the results to understand
+    ## whether the answer depends on how tightly the pose was held.
+    constrained_optimization_config:
+      - - backend: xtb
+          constrain: True
+          max_num_steps: 100
+          method: "2"
+          opt_level: normal
+          solvation_model: alpb
+          solvent: water
+          force_constant: 0.5
+      - - backend: xtb
+          constrain: True
+          max_num_steps: 100
+          method: "2"
+          opt_level: normal
+          solvation_model: alpb
+          solvent: water
+          force_constant: 0.1
+
+  - command: conformer_properties
+    submission_config:
+      submit: true
+    conformer_property_options:
+      calculation_tasks:
+        - backend: "xtb_single_point"
+          solvation_model: gbe
+          solvent: water
+          xtb_command_add: ["--gxtb", ]
+
+  #    Calculate each conformer's energy difference to the lowest-energy
+  #    conformer of its state, from the xtb energy (in Hartree).
+  #    The result is written per conformer as the "relative_energy" property.
+  - command: calculate_boltzmann_weights
+    boltzmann_options:
+      energy_property: "xtb_gbe_water_total energy"
+      energy_unit: "hartree"
+      relative_energy_property: "relative_energy"
+      relative_energy_unit: "kcal/mol"
+
+  #    Strain estimate: over the optimized reference conformers only, take the
+  #    minimum energy difference among those whose Optimization_RMSD is < 0.3.
+  #    The result is written per state as "relative_energy_min".
+  - command: aggregate_conformer_properties
+    aggregate_options:
+      selection:
+        source: reference_results
+        property_filters:
+          - property_name: "Optimization_RMSD"
+            max_value: 0.3
+      properties:
+        - property_name: relative_energy
+          property_type: scalar
+          operations:
+            - operation: min
+
+  #    Overlay each state's result conformers onto the registered reference input
+  - command: align
+    align_options:
+      reference:
+        mode: reference_input
+      alignment:
+        backend: rdkit
+      rmsd_property: alignment_rmsd

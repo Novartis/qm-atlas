@@ -1,0 +1,53 @@
+## Pipeline for a COSMO-RS property calculation, using the ReSCoSS conformer ensemble.
+##
+## To run this pipeline, you can use the following command, which injects
+## the necessary input and results directories:
+##
+##   qm-atlas pipeline --config rescoss_properties.yaml \
+##      --input_file+ <SDF file with compounds> \
+##      --results_directory <directory to store results>
+##      --submission_config.submit true
+##       # submits the pipeline monitoring job to the cluster.
+
+
+steps:
+  - command: read_input
+
+  - command: rescoss_conformers
+    # generation of ReSCoSS conformers using default options
+    submission_config:
+      submit: true
+      # relies on UGE to submit a task array for the conformer generation.
+      # If submit is set to false, the conformer generation will be run locally
+      # on the same node as the pipeline monitoring job.
+
+  - command: conformer_properties
+    submission_config:
+      submit: true
+    conformer_property_options:
+      calculation_tasks:
+      # here we run BP/TZVPD single point calculations with COSMO, this is the COSMO-FINE level of theory.
+        - backend: "turbomole_single_point"
+          basis: def2-TZVPD
+          functional:
+            - b-p
+          use_cosmo: true
+
+  - command: cosmotherm_properties
+    # this command calculates the COSMO-RS properties based on the .cosmo files generated in the previous step.
+    submission_config:
+      submit: true
+    cosmo_property_options:
+      calculation_tasks:
+        - backend: "cosmo_logp"
+          # calculates the logP of the compound based on the COSMO files of the conformers.
+        - backend: "cosmo_delta_g"
+          solvent_name: "water"
+        - backend: "cosmo_delta_g"
+          solvent_name: "decadiene"
+        - backend: "cosmo_descriptors"
+          # calculates, e.g., per-conformer energies and other properties
+          solvent_name: "water"
+        - backend: "cosmo_descriptors"
+          solvent_name: "decadiene"
+        - backend: "cosmo_psa"

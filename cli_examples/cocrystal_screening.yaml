@@ -1,0 +1,39 @@
+## Standalone co-crystal screening on an existing results directory.
+##
+## This config runs a COSMOtherm co-crystal screening on the .cosmo files that
+## are already present in a results directory (e.g. one produced by the
+## `rescoss_properties.yaml` pipeline, whose `conformer_properties` step writes
+## COSMO-FINE .cosmo files for every conformer).
+##
+## Run it by pointing --config at this file and injecting the results directory
+## that holds the compound sub-directories with the .cosmo files:
+##
+##   qm-atlas cocrystal_screening \
+##      --config cli_examples/cocrystal_screening.yaml \
+##      --input.results_directory <directory with .cosmo files>
+##
+## Set --submission_config.submit to control whether the job is submitted to the
+## cluster (below) or run locally.
+
+command: cocrystal_screening
+
+submission_config:
+  submit: true
+
+cocrystal_screening_options:
+  # coformer names must match .cosmo files in the cosmotherm database, or in an
+  # additional directory provided via coformers_dirs.
+  coformers:
+    - adenine
+    - ammonia
+    - arginine
+  stoichiometry: [1, 1]
+  # Additional directories searched for coformer .cosmo files (in addition to
+  # the COSMOtherm database) can be added. Each coformer name above is resolved to
+  # a file named "<name>_c0.cosmo" in these directories, e.g. "adenine_c0.cosmo".
+  # Set it here, or inject it on the command line:
+  #
+  #   --cocrystal_screening_options.coformers_dirs+ <directory with .cosmo files>
+  #
+  # coformers_dirs:
+  #   - <directory with coformer .cosmo files>

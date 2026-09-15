@@ -1,0 +1,85 @@
+## Minimal, fully local pipeline for a strain energy calculation. Instead of generating a
+## large conformer ensemble, we generate a small set of five conformations using RDKit
+## ETKDG and optimize them using xtb.
+## The strain energy is estimated as the energy difference between the optimized reference
+## conformer and the lowest-energy conformer found in the RDKit ETKDG conformer set,
+## based on their xtb energies. Note that we only use one force constant here and don't
+## check the optimization RMSD.
+## After the xtb single-point calculations, calculate_boltzmann_weights computes each
+## conformer's energy difference to the lowest-energy conformer.
+## A final aggregate_conformer_properties
+## step then writes the strain energy of the reference to a results csv file.
+##
+## This pipeline runs entirely on the local machine (no cluster submission) using 8 CPUs.
+##
+## To run this pipeline, you can use the following command, which injects the necessary input and results directories:
+##
+##   qm-atlas pipeline --config mini_strain.yaml \
+##      --input_file+ <SDF file with compounds> \
+##      --reference_input_file+ <SDF file with reference conformers> \
+##      --results_directory <directory to store results>
+
+steps:
+  - command: read_input
+
+  - command: fast_conformers
+    n_cores: 8
+    fast_conformers_options:
+      conformer_generation_options:
+        # generate a small set of five conformations using RDKit ETKDGv3
+        conf_gens:
+          - backend: rdkit
+            method: ETKDGv3
+            max_conformers: 5
+        combination_name: fallback
+      optimization_config:
+        - backend: xtb
+          constrain: False
+          max_num_steps: 100
+          method: "2"
+          opt_level: normal
+          solvation_model: alpb
+          solvent: water
+
+  - command: add_reference_conformers
+
+  - command: optimize_reference_conformers
+    n_cores: 8
+    constrained_optimization_config:
+      - - backend: xtb
+          constrain: True
+          max_num_steps: 100
+          method: "2"
+          opt_level: normal
+          solvation_model: alpb
+          solvent: water
+          force_constant: 0.5
+
+  - command: conformer_properties
+    n_cores: 8
+    conformer_property_options:
+      calculation_tasks:
+        - backend: "xtb_single_point"
+          solvation_model: alpb
+          solvent: water
+
+  #    Calculate each conformer's energy difference to the lowest-energy
+  #    conformer of its state, from the xtb total energy.
+  #    The result is written per conformer as the "relative_energy" property.
+  - command: calculate_boltzmann_weights
+    boltzmann_options:
+      energy_property: "xtb_alpb_water_total energy"
+      energy_unit: "hartree"
+      relative_energy_property: "relative_energy"
+      relative_energy_unit: "kcal/mol"
+
+  #    aggregation to get a strain energy per-state
+  - command: aggregate_conformer_properties
+    aggregate_options:
+      selection:
+        source: reference_results
+      properties:
+        - property_name: relative_energy
+          property_type: scalar
+          operations:
+            - operation: min

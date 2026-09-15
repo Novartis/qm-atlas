@@ -1,0 +1,14 @@
+{#- Version switcher shown in the furo sidebar. `revisions` and `current` are
+    injected by sphinx-polyversion (see conf.py). Empty on plain builds. -#}
+{% if revisions %}
+<div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Versions</span></p>
+  <ul>
+    {%- for item in revisions %}
+    <li class="toctree-l1{% if current and item.name == current.name %} current-page{% endif %}">
+      <a class="reference internal" href="../{{ item.name }}/index.html">{{ item.name }}</a>
+    </li>
+    {%- endfor %}
+  </ul>
+</div>
+{% endif %}

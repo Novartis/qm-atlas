@@ -1,0 +1,37 @@
+## Standalone solvent (solubility) screening on an existing results directory.
+##
+## This config runs a COSMOtherm solubility screening on the .cosmo files that
+## are already present in a results directory (e.g. one produced by the
+## `rescoss_properties.yaml` pipeline, whose `conformer_properties` step writes
+## COSMO-FINE .cosmo files for every conformer).
+##
+## Run it by pointing --config at this file and injecting the results directory
+## that holds the compound sub-directories with the .cosmo files:
+##
+##   qm-atlas solvent_screening \
+##      --config cli_examples/solvent_screening.yaml \
+##      --input.results_directory <directory with .cosmo files>
+##
+## To anchor the screening to measured reference solubilities, layer a second
+## config file on top (see references.yaml); the later --config is deep-merged
+## over this one:
+##
+##   qm-atlas solvent_screening \
+##      --config cli_examples/solvent_screening.yaml \
+##      --config cli_examples/references.yaml \
+##      --input.results_directory <directory with .cosmo files>
+
+command: solvent_screening
+
+submission_config:
+  submit: true
+
+solvent_screening_options:
+  # binary solubility screening over all pairs of the four solvents.
+  solvent_combinations:
+    - [water, methanol]
+    - [water, ethanol]
+    - [water, acetone]
+    - [methanol, ethanol]
+    - [methanol, acetone]
+    - [ethanol, acetone]

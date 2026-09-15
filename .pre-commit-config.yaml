@@ -1,0 +1,58 @@
+repos:
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^tests/resources/
+      - id: end-of-file-fixer
+        exclude: ^tests/resources/
+      - id: check-yaml
+        args: ["--unsafe"]
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-json
+      - id: debug-statements
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: detect-private-key
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=3000']
+
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
+      - id: autoflake
+        name: Removes unused variables
+        args:
+          - --in-place
+          - --remove-all-unused-imports
+          - --expand-star-imports
+          - --ignore-init-module-imports
+
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+      - id: isort
+        name: Sorts imports
+        args: ["--profile=black"]
+
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
+        name: Fixes formatting
+        language_version: python3
+        args: ["--line-length=99"]
+
+  - repo: local
+    hooks:
+
+      - id: jupytext-sync
+        name: Convert .ipynb to .py
+        entry: bash -c 'for file in "$@"; do dir=$(dirname "$file"); base=$(basename "$file" .ipynb); uv run jupytext --to py:percent "$file" && git add "$dir/$base.py"; done'
+        files: \.ipynb$
+        language: system
+        pass_filenames: true
+        stages: [pre-commit]

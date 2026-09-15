@@ -1,0 +1,18 @@
+package:
+  name: qm_atlas
+  version: {{ load_setup_py_data().get('version') }}
+
+source:
+  path: .
+
+build:
+  noarch: python
+  number: 0
+  script: python -m pip install --no-deps --ignore-installed .
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python

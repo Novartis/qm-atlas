@@ -1,0 +1,269 @@
+glycine_ref_0_opt_0
+     RDKit          3D
+
+  0  0  0  0  0  0  0  0  0  0999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 10 9 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 N -1.478107235039004 0.547349043205049 -0.297352539968925 0
+M  V30 2 C -0.587785999930540 -0.570954689377601 0.055057318904028 0
+M  V30 3 C 0.824571647663310 -0.102300883779435 0.374164967966682 0
+M  V30 4 O 1.154609327795507 0.446890402859398 1.416154405350648 0
+M  V30 5 O 1.684355497974380 -0.298342808674848 -0.653896691092340 0
+M  V30 6 H -1.480898231785472 1.239151740721193 0.457059560953780 0
+M  V30 7 H -1.123302120180798 1.027490690792046 -1.129126229361790 0
+M  V30 8 H -0.567542822202468 -1.290668868674304 -0.772645032858054 0
+M  V30 9 H -0.982369618865168 -1.074244415473030 0.948071984192128 0
+M  V30 10 H 2.556469554570258 0.075630788401575 -0.397487744086157 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 1 2
+M  V30 2 1 2 3
+M  V30 3 2 3 4
+M  V30 4 1 3 5
+M  V30 5 1 1 6
+M  V30 6 1 1 7
+M  V30 7 1 2 8
+M  V30 8 1 2 9
+M  V30 9 1 5 10
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+>  <Settings_Constrained_Optimization>  
+[{"backend": "xtb_turbomole", "max_num_steps": 100, "opt_level": "normal", "functional": ["b-p"], "basis": "def2-TZVP", "scf_conv": 7, "scfiterlimit": 500, "use_disp": false, "use_cosmo": true, "solvent": "conductor", "constrain": true, "torsions_fixed": true, "angles_fixed": false, "bonds_fixed": false, "force_constant": 0.001}]
+
+>  <tm_sp_HOMO(eV)>  
+-5.99993
+
+>  <tm_sp_LUMO(eV)>  
+-1.5446899999999999
+
+>  <tm_sp_HLgap(eV)>  
+4.4552500000000004
+
+>  <tm_sp_TotalEnergy(Ht)>  
+-284.59276645860001
+
+>  <cosmo_water_mu>  
+3.2038600000000002
+
+>  <cosmo_water_log10(p)>  
+-0.82181000000000004
+
+>  <cosmo_water_E_COSMO+dE+Mu>  
+-178586.44902
+
+>  <cosmo_water_H_int>  
+-8.4546200000000002
+
+>  <cosmo_water_H_MF>  
+1.8289200000000001
+
+>  <cosmo_water_H_HB>  
+-4.4723199999999999
+
+>  <cosmo_water_H_vdW>  
+-12.31476
+
+>  <cosmo_water_H_glt>  
+6.5035299999999996
+
+>  <cosmo_water_E_Ring>  
+0
+
+>  <cosmo_water_comp>  
+2
+
+>  <cosmo_water_conf>  
+8
+
+>  <cosmo_water_w(liq)>  
+0.0061799999999999997
+
+>  <cosmo_water_w(gas)>  
+0.014999999999999999
+
+>  <cosmo_water_E_COSMO+dE>  
+-178589.65288000001
+
+>  <cosmo_water_E_gas>  
+-178581.23512999999
+
+>  <cosmo_water_E_COS+dE-E_gas>  
+-8.4177400000000002
+
+>  <cosmo_water_E_diel>  
+-11.58135
+
+>  <cosmo_water_dE>  
+0.78795000000000004
+
+>  <cosmo_water_Area>  
+107.75112
+
+>  <cosmo_water_Volume>  
+91.161749999999998
+
+>  <cosmo_water_MolWeight>  
+75.066879999999998
+
+>  <cosmo_water_Charge>  
+0.00023000000000000001
+
+>  <cosmo_water_Dipol(t)>  
+2.1404000000000001
+
+>  <cosmo_water_Moment_HBacc>  
+3.9607999999999999
+
+>  <cosmo_water_Moment_HBdon>  
+3.12094
+
+>  <cosmo_water_Moment_sig2>  
+95.740719999999996
+
+>  <cosmo_water_Moment_sig3>  
+11.77675
+
+>  <cosmo_water_Moment_sig4>  
+183.04949999999999
+
+>  <cosmo_water_Moment_sig5>  
+24.80583
+
+>  <cosmo_water_Moment_sig6>  
+477.52172000000002
+
+>  <cosmo_water_Polmom_norm>  
+0.0049308069999999997
+
+>  <cosmo_water_charge_p>  
+0.43330000000000002
+
+>  <cosmo_water_charge_n>  
+-0.43330000000000002
+
+>  <cosmo_water_area_p>  
+46.898000000000003
+
+>  <cosmo_water_area_n>  
+58.798699999999997
+
+>  <cosmo_water_Gdisp3_cosmo>  
+-5.7836499999999997
+
+>  <cosmo_water_Gdisp3_gas>  
+-5.7836499999999997
+
+>  <cosmo_octanol_mu>  
+3.7572700000000001
+
+>  <cosmo_octanol_log10(p)>  
+-0.41615000000000002
+
+>  <cosmo_octanol_E_COSMO+dE+Mu>  
+-178585.89561000001
+
+>  <cosmo_octanol_H_int>  
+-7.7366200000000003
+
+>  <cosmo_octanol_H_MF>  
+2.5716700000000001
+
+>  <cosmo_octanol_H_HB>  
+-3.2787999999999999
+
+>  <cosmo_octanol_H_vdW>  
+-13.29313
+
+>  <cosmo_octanol_H_glt>  
+6.2636399999999997
+
+>  <cosmo_octanol_E_Ring>  
+0
+
+>  <cosmo_octanol_comp>  
+2
+
+>  <cosmo_octanol_conf>  
+8
+
+>  <cosmo_octanol_w(liq)>  
+0.0080770000000000008
+
+>  <cosmo_octanol_w(gas)>  
+0.014999999999999999
+
+>  <cosmo_octanol_E_COSMO+dE>  
+-178589.65288000001
+
+>  <cosmo_octanol_E_gas>  
+-178581.23512999999
+
+>  <cosmo_octanol_E_COS+dE-E_gas>  
+-8.4177400000000002
+
+>  <cosmo_octanol_E_diel>  
+-11.58135
+
+>  <cosmo_octanol_dE>  
+0.78795000000000004
+
+>  <cosmo_octanol_Area>  
+107.75112
+
+>  <cosmo_octanol_Volume>  
+91.161749999999998
+
+>  <cosmo_octanol_MolWeight>  
+75.066879999999998
+
+>  <cosmo_octanol_Charge>  
+0.00023000000000000001
+
+>  <cosmo_octanol_Dipol(t)>  
+2.1404000000000001
+
+>  <cosmo_octanol_Moment_HBacc>  
+3.9607999999999999
+
+>  <cosmo_octanol_Moment_HBdon>  
+3.12094
+
+>  <cosmo_octanol_Moment_sig2>  
+95.740719999999996
+
+>  <cosmo_octanol_Moment_sig3>  
+11.77675
+
+>  <cosmo_octanol_Moment_sig4>  
+183.04949999999999
+
+>  <cosmo_octanol_Moment_sig5>  
+24.80583
+
+>  <cosmo_octanol_Moment_sig6>  
+477.52172000000002
+
+>  <cosmo_octanol_Polmom_norm>  
+0.0049308069999999997
+
+>  <cosmo_octanol_charge_p>  
+0.43330000000000002
+
+>  <cosmo_octanol_charge_n>  
+-0.43330000000000002
+
+>  <cosmo_octanol_area_p>  
+46.898000000000003
+
+>  <cosmo_octanol_area_n>  
+58.798699999999997
+
+>  <cosmo_octanol_Gdisp3_cosmo>  
+-5.7836499999999997
+
+>  <cosmo_octanol_Gdisp3_gas>  
+-5.7836499999999997
+
+$$$$

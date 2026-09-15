@@ -1,0 +1,82 @@
+# Example software configuration for qm_atlas.
+#
+# Point the environment variable QM_ATLAS_SOFTWARE_CONFIG_FILE to your copy of
+# this file (or any YAML following the same structure):
+#
+#   export QM_ATLAS_SOFTWARE_CONFIG_FILE=/path/to/your/software_config.yaml
+#
+# The built-in default configuration (src/qm_atlas/resources/default_software_config.yaml)
+# is always loaded first and defines all supported software environments with
+# "available: false" and sensible default command names.  The values you provide
+# here are merged field-by-field on top of those defaults, so you only need to
+# specify what differs from the defaults.
+#
+# Any software left at "available: false" will cause tests that depend on it to
+# be skipped automatically.
+
+software_environments:
+
+    xtb:
+        available: true
+        modulepaths: ["/path/to/add/to/MODULEPATH"]
+        module: "xtb/6.7.1"
+        # Override the default command path only if the binary is not on PATH:
+        # commands:
+        #     xtb: "/usr/local/bin/xtb"
+
+    turbomole:
+        available: true
+        module: "cosmologic/2026"
+
+    xtb_turbomole:
+        available: true
+        modulepaths: ["/path/to/add/to/MODULEPATH"]
+        module: ["cosmologic/2026", "xtb/6.7.1"]
+
+    cosmotherm:
+        available: true
+        module: "cosmologic/2026"
+
+    jaguar:
+        available: true
+        module: "Schrodinger/2025-3"
+
+    macromodel:
+        available: true
+        module: "Schrodinger/2025-3"
+
+    moe:
+        available: true
+        module: "MOE/2024.0601_site"
+
+    moka:
+        available: true
+        module: "MoKa/3.2.2"
+
+    corina:
+        available: true
+        module: "corina"
+
+    openeye:
+        available: true
+        module: "OpenEye/20210310"
+
+    unicon:
+        available: true
+        module: "AMD/2025"
+
+submission:
+    module_purge: true
+    module_use: []
+    module_load: []
+    # command_prepend: "source ./path/to/env/bin/activate"
+    # Optional: command to prepend to every submission script (e.g. to activate a
+    # specific Python virtual environment).  If omitted, the currently active venv
+    # is detected automatically via the VIRTUAL_ENV environment variable / sys.prefix.
+
+global_settings:
+    moka_model: "/path/to/retrained/moka/model.pt"
+    cosmo_solvents_dir_fine:
+        - "/path/to/solvents/fine/"
+    cosmo_solvents_dir_tzvp:
+        - "/path/to/solvents/tzvp/"

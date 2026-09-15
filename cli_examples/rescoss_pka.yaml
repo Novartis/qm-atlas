@@ -1,0 +1,66 @@
+## Pipeline for a COSMO-RS calculation of pKa values, using the ReSCoSS conformer ensemble.
+## The protonated states are generated with MoKa, and the pKa values are computed with COSMOtherm.
+##
+## To run this pipeline, you can use the following command, which injects
+## the necessary input and results directories:
+##
+##   qm-atlas pipeline --config rescoss_pka.yaml \
+##      --input_file+ <SDF file with compounds> \
+##      --results_directory <directory to store results>
+##      --submission_config.submit true
+##       # submits the pipeline monitoring job to the cluster.
+
+steps:
+  - command: read_input
+
+  # Generate protonation states with MoKa blabber. Subsequent steps automatically
+  # pick up the new input states registered for each compound.
+  - command: protonate
+    protonate_options:
+      backend:
+        backend: moka_ionic_species
+        lower_ph_threshold: 1.0
+        upper_ph_threshold: 13.0
+        # these thresholds are used to filter out states that are not dominant anywhere between pH 1 and 13,
+        # according to the MoKa-predicted pKa values. The range is deliberately wide, since we also want to
+        # re-calculate weak pKa values with COSMOtherm for this example.
+
+  - command: rescoss_conformers
+    submission_config:
+      submit: true
+
+  - command: conformer_properties
+    submission_config:
+      submit: true
+    conformer_property_options:
+      calculation_tasks:
+        - backend: "turbomole_single_point"
+          basis: def2-TZVPD
+          functional:
+            - b-p
+          use_cosmo: true
+
+  - command: cosmotherm_properties
+    submission_config:
+      submit: true
+    cosmo_property_options:
+      calculation_tasks:
+        - backend: "cosmo_logp"
+        - backend: "cosmo_delta_g"
+          solvent_name: "water"
+        - backend: "cosmo_delta_g"
+          solvent_name: "decadiene"
+        - backend: "cosmo_psa"
+        - backend: "cosmo_descriptors"
+          solvent_name: "water"
+
+  # Compute COSMOtherm pKa values across the registered states. Requires the
+  # .cosmo files produced by conformer_properties above. 'macro' groups all
+  # states of a given charge as a Boltzmann-weighted ensemble; switch to
+  # 'micro' to enumerate pairwise (parent_state, child_state) calculations.
+  - command: cosmo_pka
+    submission_config:
+      submit: true
+    cosmo_pka_options:
+      mode: macro
+      solvent_name: h2o

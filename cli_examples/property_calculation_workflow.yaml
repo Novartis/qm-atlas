@@ -1,0 +1,142 @@
+## Complex multi-property pipeline.
+##
+## This pipeline combines the usual ReSCoSS + COSMO property workflow with
+## several additional QM properties, and shows how to run an expensive
+## calculation on a single conformer instead of on the whole ensemble.
+##
+## Overview of the steps:
+##   1. read_input                — create the compound directories.
+##   2. rescoss_conformers        — generate the ReSCoSS conformer ensemble.
+##   3. conformer_properties      — COSMO-FINE single points (BP/def2-TZVPD with
+##                                  COSMO) that write the .cosmo files. We also
+##                                  calculate Turbomole Fukui indices and NMR shieldings
+##                                  for every conformer in this step.
+##   4. cosmotherm_properties     — commonly used COSMO-RS properties (logP, ΔG_solv,
+##                                  per-conformer descriptors/energies, PSA).
+##   5. conformer_properties      — Jaguar hydrogen-abstraction energies, run
+##                                  ONLY on the single lowest-energy conformer
+##                                  (ranked by the COSMO-RS energy from step 4).
+##                                  The expensive method is
+##                                  applied to one representative conformer rather
+##                                  than the whole ensemble.
+##   6. calculate_boltzmann_weights — per-conformer Boltzmann weights from the
+##                                  COSMO-RS energies.
+##   7. aggregate_conformer_properties — Boltzmann-weighted averages of the
+##                                  per-conformer properties (Fukui, NMR).
+##
+## To run this pipeline, you can use the following command, which injects the
+## input file and results directory:
+##
+##   qm-atlas pipeline --config complex_properties.yaml \
+##      --input_file+ <SDF file with compounds> \
+##      --results_directory <directory to store results> \
+##      --submission_config.submit true
+##       # submits the pipeline monitoring job to the cluster.
+
+steps:
+  - command: read_input
+
+  - command: rescoss_conformers
+    # generation of ReSCoSS conformers using default options.
+    submission_config:
+      submit: true
+
+  - command: conformer_properties
+    # COSMO-FINE single points (BP/def2-TZVPD with COSMO) that write the .cosmo
+    # files consumed by the cosmotherm_properties step below.
+    submission_config:
+      submit: true
+    conformer_property_options:
+      calculation_tasks:
+        - backend: "turbomole_single_point"
+          basis: def2-TZVPD
+          functional:
+            - b-p
+          use_cosmo: true
+        - backend: "turbomole_fukui_indices"
+          basis: def2-TZVP
+          functional:
+            - pbe
+        - backend: "turbomole_nmr_shielding"
+          basis: def2-TZVP
+
+  - command: cosmotherm_properties
+    # the usual COSMO-RS properties calculated from the .cosmo files. The
+    # cosmo_descriptors task writes a per-conformer COSMO-RS energy
+    # ("cosmo_water_E_COSMO+dE+Mu") that is reused for conformer ranking and
+    # Boltzmann weighting further down.
+    submission_config:
+      submit: true
+    cosmo_property_options:
+      calculation_tasks:
+        - backend: "cosmo_logp"
+        - backend: "cosmo_delta_g"
+          solvent_name: "water"
+        - backend: "cosmo_descriptors"
+          solvent_name: "water"
+        - backend: "cosmo_psa"
+
+  - command: conformer_properties
+    # expensive Jaguar hydrogen-abstraction energies, run on ONLY the single
+    # lowest-energy conformer. conformer_selection filters the result conformers
+    # before the calculation: keep_lowest=1 on the COSMO-RS energy keeps just the
+    # global-minimum conformer, so the costly method is not repeated across the
+    # whole ensemble.
+    submission_config:
+      submit: true
+      cores_per_task: 4
+    conformer_selection:
+      property_filters:
+        - property_name: "cosmo_water_E_COSMO+dE+Mu"
+          keep_lowest: 1
+    conformer_property_options:
+      calculation_tasks:
+        - backend: "jaguar_h_abstraction_energies"
+          atom_idcs: "C" # run on all carbon atoms, which have hydrogens attached.
+          # The Jaguar wrapper will automatically find the attached H.
+          property_prefix: "jaguar_h_abstraction"
+
+  - command: calculate_boltzmann_weights
+    # per-conformer Boltzmann weights from the COSMO-RS energies (in kcal/mol),
+    # written to the "boltzmann_weight" property for use in the aggregation step.
+    boltzmann_options:
+      energy_property: "cosmo_water_E_COSMO+dE+Mu"
+      energy_unit: "kcal/mol"
+      weight_property: "boltzmann_weight"
+
+  - command: aggregate_conformer_properties
+    # Boltzmann-weighted averages of the per-conformer properties over the whole
+    # ensemble. Fukui indices and NMR shieldings are per-atom properties, so they
+    # are aggregated element-wise per atom.
+    #
+    # representative_structure (off by default) additionally writes one SDF per
+    # state ("{state}_representative.sdf") into the compound directory. It carries
+    # the geometry of the lowest-energy conformer (selected here via keep_lowest=1
+    # on the COSMO-RS energy) with the aggregated properties stamped onto it. The
+    # atom-based averages become per-atom SDF properties, so RDKit re-parses them
+    # onto the atoms on load — a convenient, self-contained representation of the
+    # ensemble-averaged per-atom values. The file is not registered as a result
+    # conformer, so it does not feed back into selection or aggregation.
+    aggregate_options:
+      representative_structure:
+        enabled: true
+        geometry_selection:
+          property_filters:
+            - property_name: "cosmo_water_E_COSMO+dE+Mu"
+              keep_lowest: 1
+      properties:
+        - property_name: "tm_fukui_fukui_electrophilic_mulliken"
+          property_type: atom_based
+          operations:
+            - operation: boltzmann_mean
+              weight_property: "boltzmann_weight"
+        - property_name: "tm_fukui_fukui_nucleophilic_mulliken"
+          property_type: atom_based
+          operations:
+            - operation: boltzmann_mean
+              weight_property: "boltzmann_weight"
+        - property_name: "tm_nmr_shieldings_isotropic"
+          property_type: atom_based
+          operations:
+            - operation: boltzmann_mean
+              weight_property: "boltzmann_weight"

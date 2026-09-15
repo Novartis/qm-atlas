@@ -1,0 +1,4 @@
+[MASTER]
+ignored-modules=rdkit
+disable=W1203, C0303, R1734
+load-plugins = pylint_pydantic

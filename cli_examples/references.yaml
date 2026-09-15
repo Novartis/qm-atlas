@@ -1,0 +1,30 @@
+## Reference solubilities for the solvent screening.
+##
+## This file is meant to be layered on top of `solvent_screening.yaml` via a
+## second --config argument. jsonargparse deep-merges the two files, so the
+## `references` list defined here is injected into the `solvent_screening_options`
+## from the base config while leaving everything else untouched:
+##
+##   qm-atlas solvent_screening \
+##      --config cli_examples/solvent_screening.yaml \
+##      --config cli_examples/references.yaml \
+##      --input.results_directory <directory with .cosmo files>
+##
+## Providing references switches COSMOtherm from a "relative" screening to an
+## "absolute" one anchored to these measured values. Keeping this file
+## separate allows the reference solubilities to be edited per compound without
+## touching the base screening definition.
+
+solvent_screening_options:
+  references:
+    # made-up reference solubilities (cosmotherm unit 'gl' = gram solute per
+    # liter solution) at 25 °C. Check the cosmotherm manual for an overview of
+    # the available solubility units.
+    - value: 5.4
+      solvent_names: [acetone]
+      solubility_unit: gl
+      temperature: 25.0
+    - value: 2.4
+      solvent_names: [methanol]
+      solubility_unit: gl
+      temperature: 25.0
