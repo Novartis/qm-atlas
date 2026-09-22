@@ -29,7 +29,7 @@ def get_scratch_dir() -> Path:
     to creating a scratch directory in the current working directory.
 
     Raises:
-        PermissionError:
+        OSError:
             If the scratch directory cannot be created.
 
     Returns:
@@ -45,9 +45,9 @@ def get_scratch_dir() -> Path:
         mp_scratch_dir = scratch_dir / "qm_atlas_tmp"
         mp_scratch_dir.mkdir(parents=False, exist_ok=True)
         return mp_scratch_dir
-    except PermissionError:
+    except (PermissionError, FileNotFoundError):
         _logger.warning(
-            f"Permission denied to create scratch directory in {scratch_dir}. "
+            f"Could not create scratch directory in {scratch_dir}. "
             "Using current working directory instead."
         )
     try:
@@ -55,7 +55,7 @@ def get_scratch_dir() -> Path:
         mp_scratch_dir = scratch_dir / "qm_atlas_tmp"
         mp_scratch_dir.mkdir(parents=False, exist_ok=True)
         return mp_scratch_dir
-    except PermissionError as exc:
+    except OSError as exc:
         _logger.error(
             f"Permission denied to create local scratch directory in {scratch_dir}. "
             "Using current working directory instead."

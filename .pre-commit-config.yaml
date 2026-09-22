@@ -45,14 +45,3 @@ repos:
         name: Fixes formatting
         language_version: python3
         args: ["--line-length=99"]
-
-  - repo: local
-    hooks:
-
-      - id: jupytext-sync
-        name: Convert .ipynb to .py
-        entry: bash -c 'for file in "$@"; do dir=$(dirname "$file"); base=$(basename "$file" .ipynb); uv run jupytext --to py:percent "$file" && git add "$dir/$base.py"; done'
-        files: \.ipynb$
-        language: system
-        pass_filenames: true
-        stages: [pre-commit]
