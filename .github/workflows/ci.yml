@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
 
       - name: Install project and dev dependencies
-        run: uv sync
+        run: uv sync --extra dev
 
       # No QM_ATLAS_SOFTWARE_CONFIG_FILE is set, so all programs default to
       # `available: false`. Tests that require licensed/commercial software
@@ -50,7 +50,7 @@ jobs:
           enable-cache: true
 
       - name: Install project and dev dependencies
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Run pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure

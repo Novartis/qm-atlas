@@ -11,6 +11,8 @@ import argparse
 import sys
 from pathlib import Path
 
+import pytest
+
 _SUITE_DIR = Path(__file__).parent / "suite"
 
 
@@ -37,15 +39,6 @@ def main(argv: list[str] | None = None) -> None:
     )
     # Remaining args are forwarded to pytest (e.g. -k, -x, -v).
     args, extra = parser.parse_known_args(argv)
-
-    try:
-        import pytest
-    except ModuleNotFoundError:
-        print(
-            "test_software requires pytest. Install it with: pip install 'qm_atlas[test]'",
-            file=sys.stderr,
-        )
-        sys.exit(4)
 
     pytest_args = [str(_SUITE_DIR), "-p", "no:cacheprovider"]
     if args.software_config:
