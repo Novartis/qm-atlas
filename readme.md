@@ -187,11 +187,11 @@ Every `qm_atlas` command can run in two modes, controlled by the `submit` option
 
 Cluster submission is currently implemented **only for UGE (Univa/Altair Grid Engine)** — the `engine` option defaults to `"uge"` and no other scheduler is wired up yet. The scheduler integration lives in the external [`hpc-funcs`](https://pypi.org/project/hpc-funcs/) package plus a thin layer in this repository.
 
-Support for other schedulers (e.g. **Slurm**, PBS/Torque) is **not yet available but can be added in the future** by extending `hpc-funcs` and the submission layer here. Until then, run with `submit: false` on non-UGE systems.
+Support for other schedulers (e.g. **Slurm**) is **not yet available but can be added in the future** by extending `hpc-funcs` and the submission layer here. Until then, run with `submit: false` on non-UGE systems.
 
 > **Note for contributors:** the current maintainers only have access to a UGE cluster and therefore cannot develop or test wrappers for other schedulers (such as Slurm). Contributions adding and validating additional scheduler backends are very welcome and would need to come from someone with access to the corresponding system. See [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
-### How a submission script is built (and the `VIRTUAL_ENV` pitfall)
+### How a submission script is built
 
 When a command runs with `submit: true`, `qm_atlas` writes a script (into `qm_atlas_submissions/`) that rebuilds the environment from scratch: it runs the `module purge`/`module load` lines from the config's `submission` block, activates the Python environment, `export`s `QM_ATLAS_SOFTWARE_CONFIG_FILE`, and then runs the payload.
 
