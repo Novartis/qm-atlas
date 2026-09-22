@@ -77,6 +77,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+#   Notebooks are stored as .py (jupytext percent) source of truth; .ipynb are generated artifacts.
+*.ipynb
 
 # IPython
 profile_default/
