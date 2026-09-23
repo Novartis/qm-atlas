@@ -21,7 +21,7 @@ from sphinx_polyversion.sphinx import SphinxBuilder
 ROOT = Path(__file__).resolve().parent.parent
 
 # Which refs to build documentation for
-BRANCH_REGEX = r"^master$"  # branches
+BRANCH_REGEX = r"^main$"  # branches
 TAG_REGEX = r"^v\d+\.\d+.*$"  # release tags like v1.2.3
 
 # Docs source dir (relative to each checked-out repo) and output dir (absolute)
