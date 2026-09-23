@@ -82,7 +82,7 @@ docs = [
 [project.urls]
 Homepage = "https://github.com/Novartis/qm-atlas"
 Repository = "https://github.com/Novartis/qm-atlas"
-Documentation = "https://qm-atlas.readthedocs.io"
+Documentation = "https://opensource.nibr.com/qm-atlas/"
 Issues = "https://github.com/Novartis/qm-atlas/issues"
 
 [project.scripts]

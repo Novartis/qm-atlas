@@ -28,7 +28,7 @@ For a development setup, see [Setup for development](#setup-for-development).
 
 ## Overview
 
-`qm_atlas` is organized in three layers, from low-level building blocks to ready-to-use pipelines (see the [documentation](https://qm-atlas.readthedocs.io) for details):
+`qm_atlas` is organized in three layers, from low-level building blocks to ready-to-use pipelines (see the [documentation](https://opensource.nibr.com/qm-atlas/) for details):
 
 - **Wrappers** — thin interfaces around individual external programs (xTB, Turbomole, COSMOtherm, Jaguar, and the conformer generators).
 - **Tasks** — individual calculation steps (e.g., conformer generation, optimization, property calculation) that expose a uniform interface with interchangeable backends built on top of the wrappers.

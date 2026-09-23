@@ -1,4 +1,4 @@
-"""Sphinx configuration for qm_atlas documentation."""
+"""Sphinx configuration for qm-atlas documentation."""
 
 import os
 import sys
@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from qm_atlas.version import VERSION
 
-project = "qm_atlas"
+project = "qm-atlas"
 copyright = "2026, Jimmy Kromann, Hagen Muenkler"
 author = "Jimmy Kromann, Hagen Muenkler"
 release = VERSION
@@ -30,6 +30,8 @@ exclude_patterns = ["_build", "_polyversion", "Thumbs.db", ".DS_Store"]
 
 html_theme = "furo"
 html_static_path = ["_static"]
+# Keep the release version out of the page/sidebar title.
+html_title = "qm-atlas documentation"
 
 # sphinx-polyversion: when invoked through `sphinx-polyversion`, the metadata
 # about all built versions is passed via the POLYVERSION_DATA env var. load()
@@ -41,6 +43,24 @@ try:
     from sphinx_polyversion.api import LoadError
 
     load(globals())
+
+    # load() does not register the GitRef JSON hook, so each revision arrives as
+    # sphinx-polyversion's raw {"__jsonclass__": ["...GitRef", [name, ...]]} form.
+    # Reduce it to a plain {"name": ...} dict so the sidebar template (rendered in
+    # Sphinx's Jinja sandbox) can read `item.name`.
+    def _rev_name(rev):
+        name = getattr(rev, "name", None)
+        if name is None and isinstance(rev, dict):
+            payload = rev.get("__jsonclass__")
+            if payload and len(payload) > 1 and payload[1]:
+                name = payload[1][0]
+        return name
+
+    _ctx = globals().setdefault("html_context", {})
+    if _ctx.get("revisions"):
+        _ctx["revisions"] = [{"name": _rev_name(r)} for r in _ctx["revisions"]]
+    if _ctx.get("current") is not None:
+        _ctx["current"] = {"name": _rev_name(_ctx["current"])}
 except (ImportError, LoadError):  # not building via sphinx-polyversion
     pass
 

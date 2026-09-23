@@ -1,0 +1,67 @@
+# Build the multi-version Sphinx documentation with sphinx-polyversion and
+# deploy it to GitHub Pages.
+name: Documentation
+
+on:
+  # The multi-version site includes a build of the default branch, so rebuild on
+  # pushes to main as well as on new release tags.
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent Pages deployment; do not cancel in-progress runs so
+# production deployments are allowed to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy-documentation:
+    name: Build and deploy documentation
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # sphinx-polyversion builds from committed git refs (branches/tags), not
+      # the working tree, so we need the full history and all tags.
+      - name: Checkout repository (full history and tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install docs dependencies
+        run: uv sync --extra docs
+
+      # Build every whitelisted branch/tag into docs/_build/html/<version>/
+      # with a root redirect to the default version.
+      - name: Build multi-version documentation
+        run: uv run --extra docs make -C docs multiversion
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload HTML artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./docs/_build/html"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
