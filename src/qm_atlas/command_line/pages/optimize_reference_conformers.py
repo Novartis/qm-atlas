@@ -174,7 +174,7 @@ def run_local(config: RefInterfaceConfig) -> None:
     try:
         for cpd_dir, sdf_file, log_file in worker_paths:
 
-            if worker_path_completed(
+            if not config.force_rerun and worker_path_completed(
                 cpd_dir,
                 sdf_file,
                 "reference_optimization",
@@ -263,7 +263,7 @@ def submit(config: RefInterfaceConfig) -> None:
     worker_paths = extract_worker_paths(
         config.input,
         workflow_type="reference_optimization",
-        skip_completed=True,
+        skip_completed=not config.force_rerun,
         requested_spec=config.constrained_optimization_config,
     )
 

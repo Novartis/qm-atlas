@@ -207,7 +207,9 @@ def run_local(config: FastConformersInterfaceConfig) -> None:
     try:
         for cpd_dir, sdf_file, log_file in worker_paths:
 
-            if worker_path_completed(cpd_dir, sdf_file, "conformer_expansion"):
+            if not config.force_rerun and worker_path_completed(
+                cpd_dir, sdf_file, "conformer_expansion"
+            ):
                 _logger.info(f"Skipping {sdf_file.stem}: results already present")
                 continue
 
@@ -279,7 +281,7 @@ def submit(config: FastConformersInterfaceConfig) -> None:
 
     # Extract worker paths, skipping compounds whose conformers already exist (resume)
     worker_paths = extract_worker_paths(
-        config.input, workflow_type="conformer_expansion", skip_completed=True
+        config.input, workflow_type="conformer_expansion", skip_completed=not config.force_rerun
     )
 
     if not worker_paths:

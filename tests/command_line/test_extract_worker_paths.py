@@ -302,5 +302,28 @@ def test_worker_path_completed_reference_optimization_is_settings_aware(glycine_
     assert base_config.worker_path_completed(glycine_cpd_dir, ref_input, "reference_optimization")
 
 
+def test_worker_path_completed_conformer_properties_is_tag_aware(glycine_cpd_dir):
+    from qm_atlas.tasks.calculate_properties import TurbomoleSinglePointOptions
+
+    _cpd, sdf, _log = base_config.get_conformer_property_worker_paths(glycine_cpd_dir)[0]
+
+    # The tm_sp_* tags this task writes are already on the glycine conformers.
+    done = TurbomoleSinglePointOptions()
+    assert base_config.worker_path_completed(
+        glycine_cpd_dir, sdf, "conformer_properties", requested_spec=[done]
+    )
+
+    # A different prefix means brand-new tags that are not present yet.
+    missing = TurbomoleSinglePointOptions(property_prefix="brand_new_")
+    assert not base_config.worker_path_completed(
+        glycine_cpd_dir, sdf, "conformer_properties", requested_spec=[missing]
+    )
+
+    # No requested tasks -> never complete.
+    assert not base_config.worker_path_completed(
+        glycine_cpd_dir, sdf, "conformer_properties", requested_spec=[]
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -211,6 +211,11 @@ class BaseInterfaceConfig(BaseModel):
         default=False,
         description="Enable verbose logging",
     )
+    force_rerun: bool = Field(
+        default=False,
+        description="Rerun every worker path even if its results already exist, bypassing the "
+        "completeness checks that would otherwise skip already-computed work.",
+    )
 
 
 def apply_software_config(software_config_path: Path | None) -> None:
@@ -469,10 +474,26 @@ def _reference_optimization_completed(
     return not missing_reference_optimizations(cpd_dir, sdf_file, requested_spec)
 
 
+def _conformer_properties_completed(
+    cpd_dir: compound_dir.CpdDir,
+    sdf_file: Path,
+    requested_spec: list | None = None,
+) -> bool:
+    # Complete when every SDF tag the requested tasks would write is already present.
+    if not requested_spec:
+        return False
+    expected = {tag for task in requested_spec for tag in task.get_property_names().values()}
+    if not expected:
+        return False
+    mol = cpd_dir.extract_mol(sdf_file)
+    return expected <= set(mol.GetPropNames())
+
+
 # Predicate deciding whether a worker path already has results and can be skipped.
 WORKER_PATH_COMPLETE_FROM_WORKFLOW = {
     "conformer_expansion": _conformer_expansion_completed,
     "reference_optimization": _reference_optimization_completed,
+    "conformer_properties": _conformer_properties_completed,
 }
 
 
