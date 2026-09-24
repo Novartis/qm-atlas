@@ -19,6 +19,8 @@ from qm_atlas.command_line.base_config import (
     extract_worker_paths,
 )
 from qm_atlas.command_line.file_interface import compound_dir, submission_files
+from qm_atlas.tasks.optimize import XtbTurbomoleOptions
+from qm_atlas.workflows import optimize_constrained
 
 GLYCINE_DIR = RESOURCES / "cpd_dir_example" / "glycine"  # glycine, CHEMBL773
 
@@ -234,6 +236,70 @@ def test_extract_cpd_dirs_task_control_dedup(task_control_file):
     # All 9 worker paths belong to one compound dir -> deduplicated to one.
     assert len(cpd_dirs) == 1
     assert cpd_dirs[0].cpd_name == "glycine"
+
+
+# ---------------------------------------------------------------------------
+# Settings-aware reference-optimization completeness
+# ---------------------------------------------------------------------------
+
+
+def _existing_reference_settings(glycine_cpd_dir, ref_input):
+    """Reconstruct the config sublists already computed for a reference input."""
+    sublists = []
+    for result_file in glycine_cpd_dir.get_reference_results("glycine", ref_input):
+        mol = glycine_cpd_dir.extract_mol(result_file)
+        stored = json.loads(
+            mol.GetProp(optimize_constrained.SETTINGS_CONSTRAINED_OPTIMIZATION_PROP)
+        )
+        sublists.append([XtbTurbomoleOptions(**item) for item in stored])
+    return sublists
+
+
+def test_missing_reference_optimizations_skips_already_computed(glycine_cpd_dir):
+    ref_input = glycine_cpd_dir.get_reference_inputs("glycine")[0]
+    existing = _existing_reference_settings(glycine_cpd_dir, ref_input)
+
+    missing = base_config.missing_reference_optimizations(glycine_cpd_dir, ref_input, existing)
+
+    assert missing == []
+
+
+def test_missing_reference_optimizations_returns_new_setting(glycine_cpd_dir):
+    ref_input = glycine_cpd_dir.get_reference_inputs("glycine")[0]
+    existing = _existing_reference_settings(glycine_cpd_dir, ref_input)
+    # Copy an existing setting but change the force constant so it is a genuinely new run.
+    new_item = existing[0][0].model_dump()
+    new_item["force_constant"] = 0.999
+    new_sublist = [XtbTurbomoleOptions(**new_item)]
+
+    missing = base_config.missing_reference_optimizations(
+        glycine_cpd_dir, ref_input, [existing[0], new_sublist]
+    )
+
+    # Only the new force constant is missing; the already-computed one is skipped.
+    assert missing == [new_sublist]
+
+
+def test_worker_path_completed_reference_optimization_is_settings_aware(glycine_cpd_dir):
+    ref_input = glycine_cpd_dir.get_reference_inputs("glycine")[0]
+    existing = _existing_reference_settings(glycine_cpd_dir, ref_input)
+    new_item = existing[0][0].model_dump()
+    new_item["force_constant"] = 0.999
+    new_sublist = [XtbTurbomoleOptions(**new_item)]
+
+    # All requested settings present -> complete.
+    assert base_config.worker_path_completed(
+        glycine_cpd_dir, ref_input, "reference_optimization", requested_spec=existing
+    )
+    # A newly added setting -> not complete, so the input reruns.
+    assert not base_config.worker_path_completed(
+        glycine_cpd_dir,
+        ref_input,
+        "reference_optimization",
+        requested_spec=[existing[0], new_sublist],
+    )
+    # Without requested settings, completeness falls back to "any result exists".
+    assert base_config.worker_path_completed(glycine_cpd_dir, ref_input, "reference_optimization")
 
 
 if __name__ == "__main__":

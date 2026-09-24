@@ -19,6 +19,49 @@ DEFAULT_SECOND_FORCE_CONSTANT = 0.1
 
 OPTIMIZATION_RMSD_PROP = "Optimization_RMSD"
 
+#: Property under which each optimized reference conformer stores the constrained-optimization
+#: settings that produced it. A rerun compares requested settings against this to decide which
+#: (if any) still need to be computed.
+SETTINGS_CONSTRAINED_OPTIMIZATION_PROP = "Settings_Constrained_Optimization"
+
+
+def settings_key(
+    config_list: Sequence[
+        optimize.XtbTurbomoleOptions | optimize.XtbOptions | optimize.JobexOptions
+    ],
+) -> str:
+    """Return a canonical, comparable key for one constrained-optimization config sublist.
+
+    The key is stored on every optimized reference conformer so a later rerun can tell which
+    settings have already been computed and only run the missing ones. Keys are sorted so the
+    comparison is independent of field ordering.
+
+    Args:
+        config_list: The sequence of optimization configurations that produce one result.
+
+    Returns:
+        str: A deterministic JSON string uniquely identifying the settings.
+    """
+    return json.dumps([cfg.model_dump() for cfg in config_list], sort_keys=True)
+
+
+def normalize_settings_key(raw: str) -> str:
+    """Return the canonical form of a settings key read from a stored property.
+
+    Re-serializes with sorted keys so keys written before this normalization (or with a
+    different field order) still compare equal to freshly computed ones.
+
+    Args:
+        raw: The raw JSON string stored in :data:`SETTINGS_CONSTRAINED_OPTIMIZATION_PROP`.
+
+    Returns:
+        str: The normalized key, or the original string if it is not valid JSON.
+    """
+    try:
+        return json.dumps(json.loads(raw), sort_keys=True)
+    except (json.JSONDecodeError, TypeError):
+        return raw
+
 
 DEFAULT_OPTIMIZATION_CONFIG = [
     [
@@ -83,10 +126,8 @@ def optimize_fixed_mol(
         treat_unconverged_as_failure=treat_unconverged_as_failure,
     )
 
-    # Store the settings for the first config in the list
-    mol_opt.SetProp(
-        "Settings_Constrained_Optimization", json.dumps([cfg.model_dump() for cfg in config_list])
-    )
+    # Store the settings that produced this result so a later rerun can skip it if requested again.
+    mol_opt.SetProp(SETTINGS_CONSTRAINED_OPTIMIZATION_PROP, settings_key(config_list))
 
     # Compute the RMSD between the input geometry and the optimized geometry and
     # attach it as a property.
