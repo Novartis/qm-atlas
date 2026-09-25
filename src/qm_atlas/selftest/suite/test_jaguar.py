@@ -30,6 +30,15 @@ EXP_PROPERTIES = {
     "s_j_Atom_NMR_Isotropic_Shielding": np.array([69.6832, 264.2899, 563.9533, 46.6375, 24.7801]),
 }
 
+# Fukui indices and Löwdin charges reproduce to the printed precision across
+# Schrödinger versions; NMR isotropic shieldings drift by up to ~0.03 ppm
+# (observed between 2025-3 and 2026-2), so they need a looser tolerance.
+PROPERTY_TOLERANCES = {
+    "s_j_Atom_Fukui_Index_f_NN_HOMO": 1.0e-3,
+    "s_j_Lowdin_Atom_Charge": 1.0e-3,
+    "s_j_Atom_NMR_Isotropic_Shielding": 5.0e-2,
+}
+
 
 @require_software("jaguar")
 def test_hydrogen_abstraction():
@@ -58,4 +67,4 @@ def test_descriptors():
     for key, prop_exp in EXP_PROPERTIES.items():
         assert key in properties_dict
         prop_calc = properties_dict[key].get_property_value()
-        assert np.allclose(prop_calc, prop_exp, atol=1.0e-3)
+        assert np.allclose(prop_calc, prop_exp, atol=PROPERTY_TOLERANCES[key])

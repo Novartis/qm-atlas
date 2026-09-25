@@ -15,6 +15,30 @@ from qm_atlas.wrappers.common import run_command
 _logger = logging.getLogger(__name__)
 
 
+def ensure_local_job_server(software: str) -> None:
+    """Ensure the local Schrödinger job server is running, if configured.
+
+    Recent Schrödinger releases route local (sub)jobs through a per-user job
+    server; anything that spawns Job Control subjobs (e.g. parallel Jaguar runs,
+    macrocycle Prime-MCS sampling) fails with "Local job submission requires a
+    locally running job server" when none is running. ``jsc local-server-start``
+    is idempotent and near-instant when the server is already up (~0.02 s), so we
+    call it before every submission; this also self-heals if the server was
+    stopped mid-run. Best-effort: if ``jsc`` is not configured or fails, we log
+    and continue so the job's own error surfaces.
+    """
+    software_env_manager = SOFTWARE_CONFIG.get_environment_manager()
+    if not software_env_manager.command_available(software, "jsc"):
+        return
+
+    jsc_cmd = software_env_manager.get_command(software, "jsc")
+    env = software_env_manager.get_run_environment(software)
+    try:
+        run_command(jsc_cmd, env=env)
+    except RuntimeError as exc:
+        _logger.warning(f"Could not start local Schrödinger job server: {exc}")
+
+
 def check_licenses(
     software: str,
     feature_name: str,

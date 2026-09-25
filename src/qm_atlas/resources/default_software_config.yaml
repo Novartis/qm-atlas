@@ -51,6 +51,7 @@ software_environments:
             jaguar: "jaguar"
             structconvert: "$SCHRODINGER/utilities/structconvert"
             lictool: "$SCHRODINGER/run lictool status"
+            jsc: "$SCHRODINGER/jsc local-server-start"
 
     macromodel:
         available: false
@@ -59,6 +60,7 @@ software_environments:
             structconvert: "$SCHRODINGER/utilities/structconvert"
             lictool: "$SCHRODINGER/run lictool status"
             macrocycle: "$SCHRODINGER/run -FROM psp macrocycle_sample.py"
+            jsc: "$SCHRODINGER/jsc local-server-start"
 
     moe:
         available: false
