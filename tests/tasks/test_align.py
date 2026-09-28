@@ -5,6 +5,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from qm_atlas.tasks import align
+from qm_atlas.wrappers import cresset
 
 
 def _make_two_conformer_mol():
@@ -17,6 +18,7 @@ def _make_two_conformer_mol():
 def test_registries_are_consistent():
     assert set(align.OPTIONS_CLASS_REGISTRY) == set(align.ALIGNMENT_FUNCTIONS)
     assert align.RDKIT_NAME in align.OPTIONS_CLASS_REGISTRY
+    assert align.CRESSET_NAME in align.OPTIONS_CLASS_REGISTRY
 
 
 def test_deserialize_alignment_config_via_dict():
@@ -25,6 +27,11 @@ def test_deserialize_alignment_config_via_dict():
     assert isinstance(cfg, align.RdkitAlignmentOptions)
     # An already-instantiated config passes through unchanged.
     assert align.deserialize_alignment_config(cfg) is cfg
+
+
+def test_deserialize_alignment_config_selects_cresset():
+    cfg = align.deserialize_alignment_config({"backend": "cresset"})
+    assert isinstance(cfg, align.CressetAlignmentOptions)
 
 
 def test_deserialize_alignment_config_defaults_to_rdkit():
@@ -78,3 +85,30 @@ def test_dispatch_selects_backend_by_name():
 def test_rdkit_options_reject_unknown_fields():
     with pytest.raises(ValueError):
         align.RdkitAlignmentOptions(nonexistent_option=True)  # type: ignore
+
+
+def test_cresset_options_reject_unknown_fields():
+    with pytest.raises(ValueError):
+        align.CressetAlignmentOptions(nonexistent_option=True)  # type: ignore
+
+
+def test_strip_cresset_props_removes_only_field_points():
+    mol = Chem.MolFromSmiles("CCO")
+    mol.SetProp("_cresset_fieldpoint", "keepme?")
+    mol.SetProp("keep", "yes")
+
+    cresset._strip_cresset_props(mol)
+
+    assert not mol.HasProp("_cresset_fieldpoint")
+    assert mol.GetProp("keep") == "yes"
+
+
+def test_extract_similarity_reads_similarity_tag():
+    record = Chem.MolFromSmiles("CCO")
+    record.SetProp(cresset.SIMILARITY_TAG, "0.873")
+    assert cresset._extract_similarity(record) == pytest.approx(0.873)
+
+
+def test_extract_similarity_absent_returns_none():
+    record = Chem.MolFromSmiles("CCO")
+    assert cresset._extract_similarity(record) is None

@@ -65,6 +65,10 @@ software_environments:
         available: true
         module: "AMD/2025"
 
+    cresset:
+        available: true
+        module: "cresset"
+
 submission:
     module_purge: true
     module_use: []

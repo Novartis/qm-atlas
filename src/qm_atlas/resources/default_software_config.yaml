@@ -88,3 +88,8 @@ software_environments:
         available: false
         commands:
             unicon: "unicon"
+
+    cresset:
+        available: false
+        commands:
+            align: "align"
