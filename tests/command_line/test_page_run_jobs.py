@@ -330,6 +330,11 @@ def test_optimize_reference_run_job_saves_converged(results_dir, monkeypatch):
     config = ref_page.RefInterfaceConfig(input=CalculationInput(results_directory=results_dir))
     cpd_dir = MagicMock()
     cpd_dir.extract_mol.return_value = MagicMock()
+    monkeypatch.setattr(
+        ref_page,
+        "missing_reference_optimizations",
+        lambda *a, **k: config.constrained_optimization_config,
+    )
 
     opt_mol = MagicMock()
     opt_mol.GetNumConformers.return_value = 1
@@ -343,10 +348,36 @@ def test_optimize_reference_run_job_saves_converged(results_dir, monkeypatch):
     cpd_dir.add_reference_result.assert_called_once_with(opt_mol, sdf)
 
 
+def test_optimize_reference_run_job_runs_only_missing(results_dir, monkeypatch):
+    config = ref_page.RefInterfaceConfig(input=CalculationInput(results_directory=results_dir))
+    # Only the second requested setting is still missing for this input.
+    both = config.constrained_optimization_config
+    assert len(both) >= 2
+    missing = [both[1]]
+    cpd_dir = MagicMock()
+    cpd_dir.extract_mol.return_value = MagicMock()
+    monkeypatch.setattr(ref_page, "missing_reference_optimizations", lambda *a, **k: missing)
+
+    opt_mol = MagicMock()
+    opt_mol.GetNumConformers.return_value = 1
+    run_opt = MagicMock(return_value=[opt_mol])
+    monkeypatch.setattr(ref_page.optimize_constrained, "run_constrained_optimization", run_opt)
+
+    ref_page.run_job(cpd_dir, Path("todo_ref_0.sdf"), config)
+
+    # run_job forwards only the missing settings to the optimizer.
+    assert run_opt.call_args.kwargs["optimization_config"] == missing
+
+
 def test_optimize_reference_run_job_raises_when_all_failed(results_dir, monkeypatch):
     config = ref_page.RefInterfaceConfig(input=CalculationInput(results_directory=results_dir))
     cpd_dir = MagicMock()
     cpd_dir.extract_mol.return_value = MagicMock()
+    monkeypatch.setattr(
+        ref_page,
+        "missing_reference_optimizations",
+        lambda *a, **k: config.constrained_optimization_config,
+    )
 
     failed = MagicMock()
     failed.GetNumConformers.return_value = 0  # optimization produced no conformer
@@ -366,7 +397,8 @@ def test_optimize_reference_run_local_dispatches(results_dir, monkeypatch):
     worker_paths = [(MagicMock(), Path("a.sdf"), Path("a.log"))]
     monkeypatch.setattr(ref_page, "extract_worker_paths", lambda inp, workflow_type: worker_paths)
     _neutralize_logging(monkeypatch, ref_page)
-    _disable_skip(monkeypatch, ref_page)
+    # Nothing complete, so run_local dispatches the (only) worker path.
+    monkeypatch.setattr(ref_page, "worker_path_completed", lambda *a, **k: False)
     run_job = MagicMock()
     monkeypatch.setattr(ref_page, "run_job", run_job)
 
@@ -382,10 +414,11 @@ def test_optimize_reference_run_local_skips_completed(results_dir, monkeypatch):
     ]
     monkeypatch.setattr(ref_page, "extract_worker_paths", lambda inp, workflow_type: worker_paths)
     _neutralize_logging(monkeypatch, ref_page)
+    # "done" inputs have every requested setting already; "todo" inputs still have missing ones.
     monkeypatch.setattr(
         ref_page,
         "worker_path_completed",
-        lambda cpd_dir, sdf_file, wf: sdf_file.stem.startswith("done"),
+        lambda cpd_dir, sdf_file, wf, requested_spec=None: sdf_file.stem.startswith("done"),
     )
     run_job = MagicMock()
     monkeypatch.setattr(ref_page, "run_job", run_job)

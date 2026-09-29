@@ -15,6 +15,7 @@ from qm_atlas.command_line.base_config import (
     apply_software_config,
     extract_worker_paths,
     setup_logging,
+    worker_path_completed,
 )
 from qm_atlas.command_line.file_interface import compound_dir, task_files
 from qm_atlas.command_line.utils import submission
@@ -216,6 +217,18 @@ def run_local(config: ConformerPropertyInterfaceConfig) -> None:
     try:
         for cpd_dir, sdf_file, log_file in worker_paths:
 
+            if not config.force_rerun and worker_path_completed(
+                cpd_dir,
+                sdf_file,
+                "conformer_properties",
+                requested_spec=config.conformer_property_options.calculation_tasks,
+            ):
+                _logger.info(
+                    f"Skipping {sdf_file.stem}: all requested conformer property tags "
+                    "already present"
+                )
+                continue
+
             # use new log file, if required
             if log_file != prev_log_file:
                 task_files.change_log_file(log_file, **logging_options)
@@ -291,8 +304,15 @@ def submit(config: ConformerPropertyInterfaceConfig) -> None:
     _logger.info(f"Cores per task: {config.submission_config.cores_per_task}")
     _logger.info(f"Max time: {config.submission_config.max_time}")
 
-    # Extract worker paths (molecules to process)
-    worker_paths = extract_worker_paths(config.input, workflow_type="conformer_properties")
+    # Extract worker paths, skipping conformers that already carry every requested property
+    # tag (unless forced); selection then narrows to the chosen conformers. Selection recomputes
+    # its reference from the compound directory, so the earlier skip cannot shift it.
+    worker_paths = extract_worker_paths(
+        config.input,
+        workflow_type="conformer_properties",
+        skip_completed=not config.force_rerun,
+        requested_spec=config.conformer_property_options.calculation_tasks,
+    )
     worker_paths = filter_worker_paths(worker_paths, config.conformer_selection)
 
     if not worker_paths:

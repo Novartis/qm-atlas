@@ -13,7 +13,7 @@ from qm_atlas.constants import DEFAULT_SCR
 from qm_atlas.software_environment import SOFTWARE_CONFIG
 from qm_atlas.tasks import common as calculated_properties
 from qm_atlas.wrappers.common import run_command
-from qm_atlas.wrappers.helpers import wait_for_license
+from qm_atlas.wrappers.helpers import ensure_local_job_server, wait_for_license
 from qm_atlas.wrappers.jaguar import common
 
 DEFAULT_OPTIONS = {
@@ -199,6 +199,7 @@ def run_jaguar_hydrogen_abstraction(
         raise RuntimeError("Error while waiting for Jaguar license") from exc
 
     # Run Jaguar hydrogen abstraction script
+    ensure_local_job_server(SOFTWARE_NAME)
     env = software_env_manager.get_run_environment("jaguar")
     stdout, stderr = run_command(cmd, env=env, cwd=scr)
 

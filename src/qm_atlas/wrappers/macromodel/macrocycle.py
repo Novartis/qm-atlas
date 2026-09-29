@@ -12,6 +12,7 @@ from qm_atlas.software_environment import SOFTWARE_CONFIG
 from qm_atlas.utils import conformer_is_3d
 from qm_atlas.wrappers.common import run_command
 from qm_atlas.wrappers.helpers import (
+    ensure_local_job_server,
     map_conformers_onto_template,
     read_conformers_as_mols,
     store_atom_map_numbers,
@@ -141,6 +142,7 @@ def generate_conformers(
         ) from exc
 
     env = software_env_manager.get_run_environment("macromodel", n_cores=num_cores)
+    ensure_local_job_server(SOFTWARE_NAME)
     run_command(cmd, env=env, cwd=scr)
     outfile = scr / f"{jobname}-out.maegz"
 

@@ -13,6 +13,7 @@ from qm_atlas.command_line.base_config import (
     SubmissionConfig,
     apply_software_config,
     extract_worker_paths,
+    missing_reference_optimizations,
     setup_logging,
     worker_path_completed,
 )
@@ -173,8 +174,16 @@ def run_local(config: RefInterfaceConfig) -> None:
     try:
         for cpd_dir, sdf_file, log_file in worker_paths:
 
-            if worker_path_completed(cpd_dir, sdf_file, "reference_optimization"):
-                _logger.info(f"Skipping {sdf_file.stem}: reference results already present")
+            if not config.force_rerun and worker_path_completed(
+                cpd_dir,
+                sdf_file,
+                "reference_optimization",
+                requested_spec=config.constrained_optimization_config,
+            ):
+                _logger.info(
+                    f"Skipping {sdf_file.stem}: all requested constrained-optimization "
+                    "settings already present"
+                )
                 continue
 
             # use new log file, if required
@@ -206,13 +215,18 @@ def run_local(config: RefInterfaceConfig) -> None:
 
 def run_job(cpd_dir: compound_dir.CpdDir, sdf_file: Path, config: RefInterfaceConfig) -> None:
 
+    # Run only the requested settings that are not already present (settings-aware rerun).
+    optimization_config = missing_reference_optimizations(
+        cpd_dir, sdf_file, config.constrained_optimization_config
+    )
+
     _logger.info(f"Working on Molecule {sdf_file.stem}")
     mol = cpd_dir.extract_mol(sdf_file)
 
     optimized_mols = optimize_constrained.run_constrained_optimization(
         mol,
         n_cores=config.n_cores or 1,
-        optimization_config=config.constrained_optimization_config,
+        optimization_config=optimization_config,
     )
 
     num_saved = 0
@@ -244,9 +258,13 @@ def submit(config: RefInterfaceConfig) -> None:
     _logger.info(f"Cores per task: {config.submission_config.cores_per_task}")
     _logger.info(f"Max time: {config.submission_config.max_time}")
 
-    # Skip reference conformers already optimized (resume a partial run)
+    # Skip reference inputs whose requested settings are already all computed; keep those with
+    # at least one missing setting so a rerun with new settings (e.g. a new force constant) runs.
     worker_paths = extract_worker_paths(
-        config.input, workflow_type="reference_optimization", skip_completed=True
+        config.input,
+        workflow_type="reference_optimization",
+        skip_completed=not config.force_rerun,
+        requested_spec=config.constrained_optimization_config,
     )
 
     if not worker_paths:

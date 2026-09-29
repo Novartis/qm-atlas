@@ -4,8 +4,9 @@ Aligns all conformers of a probe molecule onto a reference conformation. The
 backend is selected through an options model carrying a ``backend`` discriminator
 field, so additional alignment engines can be added without changing callers.
 
-Currently only the RDKit backend is implemented; it reuses the functions in
-:mod:`qm_atlas.tasks.utils.conformer_geometry`.
+The RDKit backend reuses the functions in
+:mod:`qm_atlas.tasks.utils.conformer_geometry`; the Cresset backend shells out to
+Cresset's ``align`` tool via :mod:`qm_atlas.wrappers.cresset`.
 
 Adding a new backend means:
 
@@ -16,16 +17,21 @@ Adding a new backend means:
 """
 
 import logging
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from rdkit import Chem
 
 from qm_atlas.tasks.utils import conformer_geometry
+from qm_atlas.wrappers import cresset
 
 _logger = logging.getLogger(__name__)
 
 RDKIT_NAME = "rdkit"
+CRESSET_NAME = "cresset"
+
+# Conformer property under which the Cresset backend carries its similarity score.
+SIMILARITY_CONF_PROP = cresset.SIMILARITY_CONF_PROP
 
 
 class AlignmentOptions(BaseModel):
@@ -53,14 +59,35 @@ class RdkitAlignmentOptions(AlignmentOptions):
     )
 
 
+class CressetAlignmentOptions(AlignmentOptions):
+    """Options for the Cresset ``align`` backend.
+
+    Runs Cresset's command-line ``align`` tool through a temporary-SDF round trip
+    (see :func:`qm_atlas.wrappers.cresset.align_mol_to_reference`). Requires the
+    ``cresset`` software environment to be available.
+    """
+
+    # No tunable fields: the wrapper's ``align_flags`` only shape the intermediate
+    # files, not the alignment result, so they stay out of the task/CLI surface.
+    model_config = ConfigDict(extra="forbid")
+
+    backend: Literal["cresset"] = Field(
+        default="cresset",
+        description="Alignment backend to use",
+    )
+
+
 OPTIONS_CLASS_REGISTRY: dict[str, type[AlignmentOptions]] = {
     RDKIT_NAME: RdkitAlignmentOptions,
+    CRESSET_NAME: CressetAlignmentOptions,
 }
 
-# The concrete options type used for the ``backend`` field. With a single backend
-# this is just ``RdkitAlignmentOptions``; once a second backend is added turn it
-# into ``Annotated[RdkitAlignmentOptions | NewOptions, Field(discriminator="backend")]``.
-AlignmentConfig = RdkitAlignmentOptions
+# The concrete options type used for the ``backend`` field: a discriminated union
+# so pydantic can (de)serialize the right backend from the ``backend`` key.
+AlignmentConfig = Annotated[
+    RdkitAlignmentOptions | CressetAlignmentOptions,
+    Field(discriminator="backend"),
+]
 
 
 def deserialize_alignment_config(data: Any) -> AlignmentOptions:
@@ -78,6 +105,7 @@ def deserialize_alignment_config(data: Any) -> AlignmentOptions:
 
 ALIGNMENT_FUNCTIONS = {
     RDKIT_NAME: conformer_geometry.align_mol_to_reference,
+    CRESSET_NAME: cresset.align_mol_to_reference,
 }
 
 

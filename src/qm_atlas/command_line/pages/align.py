@@ -135,12 +135,17 @@ class AlignOptions(BaseModel):
     alignment: align.AlignmentConfig | None = Field(
         default=None,
         description="Alignment backend and its options (dispatch key: backend). Available "
-        "backends: 'rdkit' (default).",
+        "backends: 'rdkit' (default), 'cresset'.",
     )
     rmsd_property: str | None = Field(
         default="alignment_rmsd",
         description="Name of the per-conformer property to store each conformer's RMSD "
         "to the reference under. Set to null to skip writing the RMSD.",
+    )
+    similarity_property: str | None = Field(
+        default="alignment_similarity",
+        description="Name of the per-conformer property to store the alignment similarity "
+        "score under (only produced by the 'cresset' backend). Set to null to skip it.",
     )
 
     @field_validator("reference", mode="before")
@@ -265,6 +270,16 @@ def _resolve_reference_mol(
     return cpd_dir.extract_mol(reference_file)
 
 
+def _get_similarity(aligned_mol: Chem.Mol, conf_ids: list[int]) -> float | None:
+    """Read the backend similarity score off the first aligned conformer, if any."""
+    if not conf_ids:
+        return None
+    conf = aligned_mol.GetConformer(conf_ids[0])
+    if conf.HasProp(align.SIMILARITY_CONF_PROP):
+        return conf.GetDoubleProp(align.SIMILARITY_CONF_PROP)
+    return None
+
+
 def run_job(
     cpd_dir: compound_dir.CpdDir,
     options: AlignOptions,
@@ -301,11 +316,21 @@ def run_job(
             if options.rmsd_property and rmsd is not None:
                 ScalarProperty(float(rmsd)).set_property_on_mol(aligned_mol, options.rmsd_property)
 
+            similarity = _get_similarity(aligned_mol, conf_ids)
+            if options.similarity_property and similarity is not None:
+                ScalarProperty(similarity).set_property_on_mol(
+                    aligned_mol, options.similarity_property
+                )
+
             format_utils.write_sdf(aligned_mol, sdf_file, use_v2000=False, conf_ids=conf_ids)
 
             if options.rmsd_property and rmsd is not None:
                 cpd_dir.add_properties_to_conformer_csv(
                     sdf_file, {options.rmsd_property: ScalarProperty(float(rmsd))}
+                )
+            if options.similarity_property and similarity is not None:
+                cpd_dir.add_properties_to_conformer_csv(
+                    sdf_file, {options.similarity_property: ScalarProperty(similarity)}
                 )
             n_aligned += 1
 

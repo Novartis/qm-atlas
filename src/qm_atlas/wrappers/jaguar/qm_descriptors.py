@@ -13,7 +13,7 @@ from qm_atlas.software_environment import SOFTWARE_CONFIG
 from qm_atlas.tasks import common as calculated_properties
 from qm_atlas.utils import open_utf8
 from qm_atlas.wrappers.common import run_command
-from qm_atlas.wrappers.helpers import wait_for_license
+from qm_atlas.wrappers.helpers import ensure_local_job_server, wait_for_license
 from qm_atlas.wrappers.jaguar import common
 from qm_atlas.wrappers.jaguar.common import FEATURE_NAME, SOFTWARE_NAME
 
@@ -177,6 +177,7 @@ def calculate_descriptors(
         return dict()
 
     # Run Jaguar QM descriptors script
+    ensure_local_job_server(SOFTWARE_NAME)
     env = software_env_manager.get_run_environment("jaguar")
     stdout, stderr = run_command(cmd, env=env, cwd=scr)
 

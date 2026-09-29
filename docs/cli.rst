@@ -84,6 +84,39 @@ Every command accepts ``--help`` to print its own options:
    qm-atlas pipeline --help        # options for the pipeline command
    qm-atlas fast_conformers --help # options for an individual step
 
+Skipping already-computed work
+------------------------------
+
+Several step commands check for existing results before running and **skip
+worker paths that are already complete**, so re-running a command (or resuming
+an interrupted run) only does the remaining work. As a consequence, a command
+may do nothing, or only part of the work, when results are already present.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 68
+
+   * - Command
+     - When a worker path is skipped
+   * - ``fast_conformers``
+     - The compound already has generated conformers.
+   * - ``rescoss_conformers``
+     - The compound already has generated conformers.
+   * - ``optimize_reference_conformers``
+     - Every requested constrained-optimization setting is already present for the
+       reference conformer. Adding a new setting (e.g. a new force constant) reruns
+       only that setting.
+   * - ``conformer_properties``
+     - The conformer already carries every SDF property tag the configured
+       calculation tasks would write.
+
+Pass ``--force_rerun`` to bypass these checks and recompute everything:
+
+.. code-block:: bash
+
+   qm-atlas conformer_properties --config props.yaml \
+       --results_directory ./results --force_rerun
+
 Discovering options with ``describe``
 -------------------------------------
 

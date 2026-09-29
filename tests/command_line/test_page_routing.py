@@ -97,7 +97,7 @@ def test_conformer_properties_submit_uses_conformer_properties_workflow(results_
     """The property page must route on the ``conformer_properties`` workflow type."""
     seen = {}
 
-    def fake_extract(_inp, workflow_type):
+    def fake_extract(_inp, workflow_type, **_kwargs):
         seen["workflow_type"] = workflow_type
         return [("cpd", "sdf", "log")]
 

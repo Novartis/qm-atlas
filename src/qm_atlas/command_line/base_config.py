@@ -14,6 +14,8 @@ from qm_atlas.command_line.file_interface.submission_files import (
     read_task_control,
 )
 from qm_atlas.software_environment import SOFTWARE_CONFIG, SOFTWARE_CONFIG_ENV_VAR
+from qm_atlas.tasks.optimize import OptimizationConfig
+from qm_atlas.workflows import optimize_constrained
 
 _logger = logging.getLogger(__name__)
 
@@ -208,6 +210,11 @@ class BaseInterfaceConfig(BaseModel):
     verbose: bool = Field(
         default=False,
         description="Enable verbose logging",
+    )
+    force_rerun: bool = Field(
+        default=False,
+        description="Rerun every worker path even if its results already exist, bypassing the "
+        "completeness checks that would otherwise skip already-computed work.",
     )
 
 
@@ -412,20 +419,86 @@ def _conformer_expansion_completed(cpd_dir: compound_dir.CpdDir, sdf_file: Path)
     return len(cpd_dir.get_result_files(state, include_references=False)) > 0
 
 
-def _reference_optimization_completed(cpd_dir: compound_dir.CpdDir, sdf_file: Path) -> bool:
+def _existing_reference_settings_keys(cpd_dir: compound_dir.CpdDir, sdf_file: Path) -> set[str]:
+    """Return the constrained-optimization settings already computed for a reference input.
+
+    Each optimized reference conformer stores the settings that produced it, so a rerun can
+    compare requested settings against what already exists.
+    """
     state = cpd_dir.find_state_by_file(sdf_file)
-    return len(cpd_dir.get_reference_results(state, sdf_file)) > 0
+    keys: set[str] = set()
+    for result_file in cpd_dir.get_reference_results(state, sdf_file):
+        mol = cpd_dir.extract_mol(result_file)
+        if mol.HasProp(optimize_constrained.SETTINGS_CONSTRAINED_OPTIMIZATION_PROP):
+            raw = mol.GetProp(optimize_constrained.SETTINGS_CONSTRAINED_OPTIMIZATION_PROP)
+            keys.add(optimize_constrained.normalize_settings_key(raw))
+    return keys
+
+
+def missing_reference_optimizations(
+    cpd_dir: compound_dir.CpdDir,
+    sdf_file: Path,
+    requested_configs: list[list[OptimizationConfig]],
+) -> list[list[OptimizationConfig]]:
+    """Return the requested optimization configs with no matching existing result.
+
+    This is the full picture behind :func:`worker_path_completed` for reference optimization:
+    an empty list means every requested setting is already present, a non-empty list is exactly
+    the settings that still need to run (e.g. a newly added force constant).
+
+    Args:
+        cpd_dir (compound_dir.CpdDir): The owning compound directory.
+        sdf_file (Path): The reference input file to inspect.
+        requested_configs (list[list[OptimizationConfig]]): The requested optimization settings.
+
+    Returns:
+        list[list[OptimizationConfig]]: The subset of requested settings still to run.
+    """
+    existing = _existing_reference_settings_keys(cpd_dir, sdf_file)
+    return [
+        sublist
+        for sublist in requested_configs
+        if optimize_constrained.settings_key(sublist) not in existing
+    ]
+
+
+def _reference_optimization_completed(
+    cpd_dir: compound_dir.CpdDir,
+    sdf_file: Path,
+    requested_spec: list[list[OptimizationConfig]] | None = None,
+) -> bool:
+    # Without the requested settings, "complete" means any result exists (used by check_results).
+    if requested_spec is None:
+        state = cpd_dir.find_state_by_file(sdf_file)
+        return len(cpd_dir.get_reference_results(state, sdf_file)) > 0
+    return not missing_reference_optimizations(cpd_dir, sdf_file, requested_spec)
+
+
+def _conformer_properties_completed(
+    cpd_dir: compound_dir.CpdDir,
+    sdf_file: Path,
+    requested_spec: list | None = None,
+) -> bool:
+    # Complete when every SDF tag the requested tasks would write is already present.
+    if not requested_spec:
+        return False
+    expected = {tag for task in requested_spec for tag in task.get_property_names().values()}
+    if not expected:
+        return False
+    mol = cpd_dir.extract_mol(sdf_file)
+    return expected <= set(mol.GetPropNames())
 
 
 # Predicate deciding whether a worker path already has results and can be skipped.
 WORKER_PATH_COMPLETE_FROM_WORKFLOW = {
     "conformer_expansion": _conformer_expansion_completed,
     "reference_optimization": _reference_optimization_completed,
+    "conformer_properties": _conformer_properties_completed,
 }
 
 
 def worker_path_completed(
-    cpd_dir: compound_dir.CpdDir, sdf_file: Path, workflow_type: str
+    cpd_dir: compound_dir.CpdDir, sdf_file: Path, workflow_type: str, **kwargs
 ) -> bool:
     """Return whether *sdf_file* already has results for *workflow_type*.
 
@@ -435,6 +508,7 @@ def worker_path_completed(
         cpd_dir (compound_dir.CpdDir): The owning compound directory.
         sdf_file (Path): The worker-path input file to check.
         workflow_type (str): The workflow whose results define completeness.
+        **kwargs: Additional keyword arguments passed to the workflow-specific checker.
 
     Returns:
         bool: True if results already exist and the worker path can be skipped.
@@ -442,13 +516,14 @@ def worker_path_completed(
     checker = WORKER_PATH_COMPLETE_FROM_WORKFLOW.get(workflow_type)
     if checker is None:
         return False
-    return checker(cpd_dir, sdf_file)
+    return checker(cpd_dir, sdf_file, **kwargs)
 
 
 def extract_worker_paths(
     calculation_input: CalculationInput,
     workflow_type: str,
     skip_completed: bool = False,
+    **kwargs,
 ) -> list[WorkerPath]:
     """Extract worker paths based on input configuration.
 
@@ -459,6 +534,7 @@ def extract_worker_paths(
             exist (used to resume a partially completed run). Only applied to the
             compound-directory and results-directory branches; task-control slices
             are assumed to have been filtered when the task array was created.
+        **kwargs: Additional keyword arguments passed to the workflow-specific checker.
 
     Returns:
         list[WorkerPath]: The worker paths to process.
@@ -499,7 +575,7 @@ def extract_worker_paths(
         worker_paths = [
             (cpd_dir, sdf_file, log_file)
             for cpd_dir, sdf_file, log_file in worker_paths
-            if not worker_path_completed(cpd_dir, sdf_file, workflow_type)
+            if not worker_path_completed(cpd_dir, sdf_file, workflow_type, **kwargs)
         ]
 
     return worker_paths

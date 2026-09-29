@@ -171,7 +171,7 @@ def generate_conformers(
     # run Schrodinger
     software_env_manager = SOFTWARE_CONFIG.get_environment_manager()
     bmin_cmd = software_env_manager.get_command("macromodel", "bmin")
-    cmd = f"{bmin_cmd} -LOCAL -WAIT {mm_script.stem}"
+    cmd = f"{bmin_cmd} -NOJOBID -WAIT {mm_script.stem}"
     env = software_env_manager.get_run_environment("macromodel")
     run_command(cmd, env=env, cwd=scr)
 

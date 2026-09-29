@@ -30,7 +30,7 @@ M  V30 END BOND
 M  V30 END CTAB
 M  END
 >  <Settings_Constrained_Optimization>  
-[{"backend": "xtb_turbomole", "max_num_steps": 100, "opt_level": "normal", "functional": ["b-p"], "basis": "def2-TZVP", "scf_conv": 7, "scfiterlimit": 500, "use_disp": false, "use_cosmo": true, "solvent": "conductor", "constrain": true, "torsions_fixed": true, "angles_fixed": false, "bonds_fixed": false, "force_constant": 0.01}]
+[{"angles_fixed": false, "backend": "xtb_turbomole", "basis": "def2-TZVP", "bonds_fixed": false, "constrain": true, "force_constant": 0.01, "functional": ["b-p"], "heavy_atom_torsions_fixed": true, "max_num_steps": 100, "opt_level": "normal", "scf_conv": 7, "scfiterlimit": 500, "solvent": "conductor", "torsions_fixed": true, "use_cosmo": true, "use_disp": false}]
 
 >  <tm_sp_HOMO(eV)>  
 -6.0822799999999999
