@@ -3,6 +3,7 @@
 import shutil
 from zipfile import ZipFile
 
+import pandas as pd
 import pytest
 from conftest import RESOURCES  # pylint: disable=import-error
 from context import create_homedir_tmp_path  # pylint: disable=import-error
@@ -63,6 +64,31 @@ def test_collect_copies_bookkeeping_and_cosmo(results_dir):
         names = zf.namelist()
     assert names, "COSMO archive should not be empty"
     assert all(name.endswith(".cosmo") for name in names)
+
+
+def test_collect_combined_csvs(results_dir):
+    config = CollectInterfaceConfig(input=CalculationInput(results_directory=results_dir))
+    main(config=config)
+
+    collected = results_dir / collect_output.OUTPUT_DIR_NAME
+    cpd_dir = compound_dir.create_cpd_dir(results_dir / "glycine")
+    expected_smiles = cpd_dir.registry_handler.get_entry("glycine").smiles
+
+    molecule_df = pd.read_csv(collected / collect_output.COMBINED_MOLECULE_CSV)
+    assert list(molecule_df.columns[:2]) == [
+        collect_output.COMPOUND_NAME_COLUMN,
+        collect_output.CANONICAL_SMILES_COLUMN,
+    ]
+    assert (molecule_df[collect_output.COMPOUND_NAME_COLUMN] == "glycine").all()
+    assert (molecule_df[collect_output.CANONICAL_SMILES_COLUMN] == expected_smiles).all()
+
+    conformer_df = pd.read_csv(collected / collect_output.COMBINED_CONFORMER_CSV)
+    assert list(conformer_df.columns[:2]) == [
+        collect_output.COMPOUND_NAME_COLUMN,
+        collect_output.CANONICAL_SMILES_COLUMN,
+    ]
+    assert (conformer_df[collect_output.COMPOUND_NAME_COLUMN] == "glycine").all()
+    assert (conformer_df[collect_output.CANONICAL_SMILES_COLUMN] == expected_smiles).all()
 
 
 def test_collect_custom_output_directory(results_dir):
