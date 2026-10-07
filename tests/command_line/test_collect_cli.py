@@ -11,8 +11,10 @@ from rdkit import Chem
 
 from qm_atlas.command_line.base_config import CalculationInput
 from qm_atlas.command_line.file_interface import collect_output, compound_dir
+from qm_atlas.command_line.file_interface.compound_dir import PkaInfo
 from qm_atlas.command_line.pages import collect
 from qm_atlas.command_line.pages.collect import CollectInterfaceConfig, main
+from qm_atlas.tasks.common import ScalarProperty
 
 GLYCINE_RESOURCE = RESOURCES / "cpd_dir_example" / "glycine"
 
@@ -89,6 +91,67 @@ def test_collect_combined_csvs(results_dir):
     ]
     assert (conformer_df[collect_output.COMPOUND_NAME_COLUMN] == "glycine").all()
     assert (conformer_df[collect_output.CANONICAL_SMILES_COLUMN] == expected_smiles).all()
+
+
+def test_collect_compound_summary_single_state(results_dir):
+    config = CollectInterfaceConfig(input=CalculationInput(results_directory=results_dir))
+    main(config=config)
+
+    collected = results_dir / collect_output.OUTPUT_DIR_NAME
+    summary = pd.read_csv(collected / collect_output.COMPOUND_SUMMARY_CSV)
+    row = summary.iloc[0]
+
+    cpd_dir = compound_dir.create_cpd_dir(results_dir / "glycine")
+    assert row[collect_output.SUMMARY_COMPOUND_NAME_COLUMN] == "glycine"
+    assert row[collect_output.SUMMARY_SMILES_COLUMN] == (
+        cpd_dir.registry_handler.get_entry("glycine").smiles
+    )
+    # The directory's own state contributes unsuffixed property columns.
+    assert "cosmo_logp" in summary.columns
+
+
+def test_compound_summary_multistate_and_pka(tmp_path):
+    cpd_path = tmp_path / "results" / "mol"
+    cpd_dir = compound_dir.create_cpd_dir(cpd_path, create_new=True)
+
+    reg = cpd_dir.registry_handler
+    reg.register_state("mol", "O=C(O)c1ccccc1", 0, cpd_path / "input" / "mol.sdf")
+    reg.register_state("mol_A", "O=C([O-])c1ccccc1", -1, cpd_path / "input" / "mol_A.sdf")
+    reg.register_state("mol_BH", "O=C(O)c1cc[nH+]cc1", 1, cpd_path / "input" / "mol_BH.sdf")
+
+    cpd_dir.add_properties_to_molecule_csv("mol", {"prop": ScalarProperty(1.0)})
+    cpd_dir.add_properties_to_molecule_csv("mol_A", {"prop": ScalarProperty(2.0)})
+    cpd_dir.add_properties_to_molecule_csv("mol_BH", {"prop": ScalarProperty(3.0)})
+
+    # Two acidic transitions (touch a negative state) and one basic (touch +1).
+    cpd_dir.add_pka_info(PkaInfo("ACID", 4.0, "m", parent_states=["mol"], child_states=["mol_A"]))
+    cpd_dir.add_pka_info(
+        PkaInfo("ACID", 9.0, "m", parent_states=["mol_A"], child_states=["mol_A2"])
+    )
+    cpd_dir.add_pka_info(PkaInfo("BASE", 8.0, "m", parent_states=["mol_BH"], child_states=["mol"]))
+
+    target = tmp_path / "collected"
+    target.mkdir()
+    collect_output._write_compound_summary_csv([cpd_dir], target)
+
+    summary = pd.read_csv(target / collect_output.COMPOUND_SUMMARY_CSV)
+    assert len(summary) == 1
+    row = summary.iloc[0]
+
+    assert row[collect_output.SUMMARY_COMPOUND_NAME_COLUMN] == "mol"
+    assert row[collect_output.SUMMARY_SMILES_COLUMN] == "O=C(O)c1ccccc1"
+
+    # Properties flatten into state-suffixed columns.
+    assert row["prop"] == 1.0
+    assert row["prop_A"] == 2.0
+    assert row["prop_BH"] == 3.0
+
+    # Acidic ranked ascending (strongest first); basic ranked descending.
+    assert row["acidic pKa 1"] == 4.0
+    assert row["acidic pKa 2"] == 9.0
+    assert row["basic pKa 1"] == 8.0
+    assert row["acidic pKa 1 states"] == "mol -> mol_A"
+    assert row["basic pKa 1 states"] == "mol_BH -> mol"
 
 
 def test_collect_custom_output_directory(results_dir):

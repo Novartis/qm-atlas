@@ -21,6 +21,14 @@ two columns:
 
 - ``all_properties.csv`` (every per-state property row)
 - ``all_conformer_properties.csv`` (every per-conformer property row)
+
+A compound-level summary ``compound_summary.csv`` is also written, with one row
+per compound. Its ``Compound Name`` and ``SMILES`` columns identify the compound
+(the canonical, hydrogen-free SMILES of the state named after the directory).
+Each molecule-wide property is flattened into state-suffixed columns (e.g.
+``prop``, ``prop_A``, ``prop_BH``), and the calculated pKa values are ranked into
+``acidic pKa N`` / ``basic pKa N`` columns (strongest first), each paired with an
+``... states`` column naming the transition's states.
 """
 
 import logging
@@ -42,6 +50,11 @@ COMBINED_MOLECULE_CSV = "all_properties.csv"
 COMBINED_CONFORMER_CSV = "all_conformer_properties.csv"
 COMPOUND_NAME_COLUMN = "Compound_Name"
 CANONICAL_SMILES_COLUMN = "Canonical_SMILES"
+
+# Compound-level summary (one row per compound, properties flattened by state).
+COMPOUND_SUMMARY_CSV = "compound_summary.csv"
+SUMMARY_COMPOUND_NAME_COLUMN = "Compound Name"
+SUMMARY_SMILES_COLUMN = "SMILES"
 
 
 def collect_files(
@@ -69,6 +82,7 @@ def collect_files(
         extract_results(cpd_dir, target_dir, use_v2000=use_v2000)
 
     _write_combined_csvs(cpd_dirs, target_dir)
+    _write_compound_summary_csv(cpd_dirs, target_dir)
 
 
 def extract_results(
@@ -214,3 +228,122 @@ def _write_combined_csvs(cpd_dirs: list[compound_dir.CpdDir], target_dir: Path) 
         compound_dir.write_csv(
             pd.concat(conformer_frames, ignore_index=True), target_dir / COMBINED_CONFORMER_CSV
         )
+
+
+def _state_suffix(cpd_name: str, state_name: str) -> str:
+    """Property-column suffix for a state (empty for the directory's own state)."""
+    if state_name == cpd_name:
+        return ""
+    if state_name.startswith(f"{cpd_name}_"):
+        return state_name[len(cpd_name) :]
+    return f"_{state_name}"
+
+
+def _compound_smiles(cpd_dir: compound_dir.CpdDir) -> str:
+    """Canonical (no-H) SMILES of the state that defines the compound directory."""
+    entry = cpd_dir.registry_handler.get_registry().get(cpd_dir.cpd_name)
+    if entry is not None:
+        return entry.smiles
+    _logger.warning(f"No registered state named '{cpd_dir.cpd_name}'; summary SMILES left empty")
+    return ""
+
+
+def _summary_property_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]:
+    """Flatten the per-state molecule CSV into one row, suffixing columns by state."""
+    df = compound_dir.read_csv(cpd_dir.molecule_csv)
+    if df.empty or compound_dir.STATE_COLUMN not in df.columns:
+        return {}
+    columns: dict[str, object] = {}
+    for _, row in df.iterrows():
+        suffix = _state_suffix(cpd_dir.cpd_name, str(row[compound_dir.STATE_COLUMN]))
+        for prop in df.columns:
+            if prop == compound_dir.STATE_COLUMN:
+                continue
+            columns[f"{prop}{suffix}"] = row[prop]
+    return columns
+
+
+def _classify_pka(info: compound_dir.PkaInfo, charge_map: dict[str, int]) -> str | None:
+    """Classify a pKa transition as 'acidic' or 'basic' from its states' charges.
+
+    A transition touching a negatively charged state is acidic; one touching a
+    positively charged state is basic. Falls back to the stored ``PKA_Type``
+    label when no charge is known for the involved states.
+    """
+    charges = [charge_map[s] for s in info.parent_states + info.child_states if s in charge_map]
+    if any(charge < 0 for charge in charges):
+        return "acidic"
+    if any(charge > 0 for charge in charges):
+        return "basic"
+    label = info.pka_type.upper()
+    if label.startswith("ACID"):
+        return "acidic"
+    if label.startswith("BASE"):
+        return "basic"
+    return None
+
+
+def _transition_label(info: compound_dir.PkaInfo) -> str:
+    """Human-readable 'parents -> children' label for a pKa transition."""
+    parents = compound_dir.PKA_STATES_SEPARATOR.join(info.parent_states)
+    children = compound_dir.PKA_STATES_SEPARATOR.join(info.child_states)
+    return f"{parents} -> {children}"
+
+
+def _summary_pka_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]:
+    """Rank acidic (ascending) and basic (descending) pKa values into named columns."""
+    pka_infos = cpd_dir.get_all_pka_info()
+    if not pka_infos:
+        return {}
+
+    charge_map = {
+        name: entry.charge for name, entry in cpd_dir.registry_handler.get_registry().items()
+    }
+    acidic: list[compound_dir.PkaInfo] = []
+    basic: list[compound_dir.PkaInfo] = []
+    for info in pka_infos:
+        kind = _classify_pka(info, charge_map)
+        if kind == "acidic":
+            acidic.append(info)
+        elif kind == "basic":
+            basic.append(info)
+        else:
+            _logger.warning(
+                f"Could not classify pKa {info.pka_value} "
+                f"({info.parent_states} -> {info.child_states}) as acidic or basic; skipping"
+            )
+
+    acidic.sort(key=lambda info: info.pka_value)
+    basic.sort(key=lambda info: info.pka_value, reverse=True)
+
+    columns: dict[str, object] = {}
+    for rank, info in enumerate(acidic, start=1):
+        columns[f"acidic pKa {rank}"] = info.pka_value
+        columns[f"acidic pKa {rank} states"] = _transition_label(info)
+    for rank, info in enumerate(basic, start=1):
+        columns[f"basic pKa {rank}"] = info.pka_value
+        columns[f"basic pKa {rank} states"] = _transition_label(info)
+    return columns
+
+
+def _write_compound_summary_csv(cpd_dirs: list[compound_dir.CpdDir], target_dir: Path) -> None:
+    """Write one summary row per compound, aggregating all of its states.
+
+    Molecule-wide properties are flattened into state-suffixed columns (e.g.
+    ``prop``, ``prop_A``, ``prop_BH``) and the calculated pKa values are ranked
+    into ``acidic``/``basic`` columns for integration with external programs.
+    """
+    rows: list[dict[str, object]] = []
+    for cpd_dir in cpd_dirs:
+        if not cpd_dir.molecule_csv.is_file() and not cpd_dir.pka_csv.is_file():
+            continue
+        row: dict[str, object] = {
+            SUMMARY_COMPOUND_NAME_COLUMN: cpd_dir.cpd_name,
+            SUMMARY_SMILES_COLUMN: _compound_smiles(cpd_dir),
+        }
+        row.update(_summary_property_columns(cpd_dir))
+        row.update(_summary_pka_columns(cpd_dir))
+        rows.append(row)
+
+    if rows:
+        compound_dir.write_csv(pd.DataFrame(rows), target_dir / COMPOUND_SUMMARY_CSV)
