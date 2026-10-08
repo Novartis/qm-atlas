@@ -117,18 +117,29 @@ def test_compound_summary_multistate_and_pka(tmp_path):
     reg = cpd_dir.registry_handler
     reg.register_state("mol", "O=C(O)c1ccccc1", 0, cpd_path / "input" / "mol.sdf")
     reg.register_state("mol_A", "O=C([O-])c1ccccc1", -1, cpd_path / "input" / "mol_A.sdf")
+    reg.register_state("mol_A2", "[O-]C(=O)c1ccc([O-])cc1", -2, cpd_path / "input" / "mol_A2.sdf")
     reg.register_state("mol_BH", "O=C(O)c1cc[nH+]cc1", 1, cpd_path / "input" / "mol_BH.sdf")
 
     cpd_dir.add_properties_to_molecule_csv("mol", {"prop": ScalarProperty(1.0)})
     cpd_dir.add_properties_to_molecule_csv("mol_A", {"prop": ScalarProperty(2.0)})
     cpd_dir.add_properties_to_molecule_csv("mol_BH", {"prop": ScalarProperty(3.0)})
 
-    # Two acidic transitions (touch a negative state) and one basic (touch +1).
-    cpd_dir.add_pka_info(PkaInfo("ACID", 4.0, "m", parent_states=["mol"], child_states=["mol_A"]))
+    # Two methods (ML + physics) must be ranked independently.
     cpd_dir.add_pka_info(
-        PkaInfo("ACID", 9.0, "m", parent_states=["mol_A"], child_states=["mol_A2"])
+        PkaInfo("ACID", 9.5, "moka", parent_states=["mol"], child_states=["mol_A"])
     )
-    cpd_dir.add_pka_info(PkaInfo("BASE", 8.0, "m", parent_states=["mol_BH"], child_states=["mol"]))
+    cpd_dir.add_pka_info(
+        PkaInfo("ACID", 10.0, "moka", parent_states=["mol_A"], child_states=["mol_A2"])
+    )
+    cpd_dir.add_pka_info(
+        PkaInfo("BASE", 2.5, "moka", parent_states=["mol"], child_states=["mol_BH"])
+    )
+    cpd_dir.add_pka_info(
+        PkaInfo("ACID", 9.0, "cosmo", parent_states=["mol"], child_states=["mol_A"])
+    )
+    cpd_dir.add_pka_info(
+        PkaInfo("BASE", 1.5, "cosmo", parent_states=["mol"], child_states=["mol_BH"])
+    )
 
     target = tmp_path / "collected"
     target.mkdir()
@@ -146,12 +157,14 @@ def test_compound_summary_multistate_and_pka(tmp_path):
     assert row["prop_A"] == 2.0
     assert row["prop_BH"] == 3.0
 
-    # Acidic ranked ascending (strongest first); basic ranked descending.
-    assert row["acidic pKa 1"] == 4.0
-    assert row["acidic pKa 2"] == 9.0
-    assert row["basic pKa 1"] == 8.0
-    assert row["acidic pKa 1 states"] == "mol -> mol_A"
-    assert row["basic pKa 1 states"] == "mol_BH -> mol"
+    # Each method is ranked on its own basis; acidic ascending, basic descending.
+    assert row["moka acidic pKa 1"] == 9.5
+    assert row["moka acidic pKa 2"] == 10.0
+    assert row["moka basic pKa 1"] == 2.5
+    assert row["cosmo acidic pKa 1"] == 9.0
+    assert row["cosmo basic pKa 1"] == 1.5
+    assert row["moka acidic pKa 1 states"] == "mol -> mol_A"
+    assert row["cosmo basic pKa 1 states"] == "mol -> mol_BH"
 
 
 def test_collect_custom_output_directory(results_dir):

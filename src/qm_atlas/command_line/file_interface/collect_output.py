@@ -26,9 +26,11 @@ A compound-level summary ``compound_summary.csv`` is also written, with one row
 per compound. Its ``Compound Name`` and ``SMILES`` columns identify the compound
 (the canonical, hydrogen-free SMILES of the state named after the directory).
 Each molecule-wide property is flattened into state-suffixed columns (e.g.
-``prop``, ``prop_A``, ``prop_BH``), and the calculated pKa values are ranked into
-``acidic pKa N`` / ``basic pKa N`` columns (strongest first), each paired with an
-``... states`` column naming the transition's states.
+``prop``, ``prop_A``, ``prop_BH``), and the calculated pKa values are ranked
+into ``acidic pKa N`` / ``basic pKa N`` columns (strongest first), separately per
+calculation method and prefixed with the method name (e.g.
+``moka_ionic_species acidic pKa 1``), each paired with an ``... states`` column
+naming the transition's states.
 """
 
 import logging
@@ -263,18 +265,12 @@ def _summary_property_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]
     return columns
 
 
-def _classify_pka(info: compound_dir.PkaInfo, charge_map: dict[str, int]) -> str | None:
-    """Classify a pKa transition as 'acidic' or 'basic' from its states' charges.
+def _classify_pka(info: compound_dir.PkaInfo) -> str | None:
+    """Classify a pKa transition as 'acidic' or 'basic' from its ``PKA_Type`` label.
 
-    A transition touching a negatively charged state is acidic; one touching a
-    positively charged state is basic. Falls back to the stored ``PKA_Type``
-    label when no charge is known for the involved states.
+    Each method labels the ionizable centre in its own convention, so the stored
+    ``ACID`` / ``BASE`` type is the consistent basis within a method.
     """
-    charges = [charge_map[s] for s in info.parent_states + info.child_states if s in charge_map]
-    if any(charge < 0 for charge in charges):
-        return "acidic"
-    if any(charge > 0 for charge in charges):
-        return "basic"
     label = info.pka_type.upper()
     if label.startswith("ACID"):
         return "acidic"
@@ -290,19 +286,15 @@ def _transition_label(info: compound_dir.PkaInfo) -> str:
     return f"{parents} -> {children}"
 
 
-def _summary_pka_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]:
-    """Rank acidic (ascending) and basic (descending) pKa values into named columns."""
-    pka_infos = cpd_dir.get_all_pka_info()
-    if not pka_infos:
-        return {}
-
-    charge_map = {
-        name: entry.charge for name, entry in cpd_dir.registry_handler.get_registry().items()
-    }
+def _ranked_pka_columns(
+    infos: list[compound_dir.PkaInfo],
+    prefix: str,
+) -> dict[str, object]:
+    """Rank one method's pKa values into acidic (ascending) and basic (descending) columns."""
     acidic: list[compound_dir.PkaInfo] = []
     basic: list[compound_dir.PkaInfo] = []
-    for info in pka_infos:
-        kind = _classify_pka(info, charge_map)
+    for info in infos:
+        kind = _classify_pka(info)
         if kind == "acidic":
             acidic.append(info)
         elif kind == "basic":
@@ -318,11 +310,32 @@ def _summary_pka_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]:
 
     columns: dict[str, object] = {}
     for rank, info in enumerate(acidic, start=1):
-        columns[f"acidic pKa {rank}"] = info.pka_value
-        columns[f"acidic pKa {rank} states"] = _transition_label(info)
+        columns[f"{prefix}acidic pKa {rank}"] = info.pka_value
+        columns[f"{prefix}acidic pKa {rank} states"] = _transition_label(info)
     for rank, info in enumerate(basic, start=1):
-        columns[f"basic pKa {rank}"] = info.pka_value
-        columns[f"basic pKa {rank} states"] = _transition_label(info)
+        columns[f"{prefix}basic pKa {rank}"] = info.pka_value
+        columns[f"{prefix}basic pKa {rank} states"] = _transition_label(info)
+    return columns
+
+
+def _summary_pka_columns(cpd_dir: compound_dir.CpdDir) -> dict[str, object]:
+    """Rank pKa values into named columns, separately per calculation method.
+
+    ML predictions (e.g. moka) and physics-based recalculations (e.g. cosmotherm)
+    are not comparable, so each method is ranked independently and its name is
+    prefixed onto the column (e.g. ``moka_ionic_species acidic pKa 1``).
+    """
+    pka_infos = cpd_dir.get_all_pka_info()
+    if not pka_infos:
+        return {}
+
+    by_method: dict[str, list[compound_dir.PkaInfo]] = {}
+    for info in pka_infos:
+        by_method.setdefault(info.method, []).append(info)
+
+    columns: dict[str, object] = {}
+    for method, infos in by_method.items():
+        columns.update(_ranked_pka_columns(infos, prefix=f"{method} "))
     return columns
 
 
