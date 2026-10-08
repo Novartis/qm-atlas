@@ -1,7 +1,6 @@
 {
   "include": [
-    "qm_atlas",
-    "ppqm",
+    "src/qm_atlas",
     "tests"
   ],
 
@@ -15,7 +14,9 @@
   "ignore": [
   ],
 
-  "venv": "env367",
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
 
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
