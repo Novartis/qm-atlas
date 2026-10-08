@@ -481,6 +481,17 @@ def _read_weights(
     return weights
 
 
+def _nan_output_properties(
+    options: AggregateConformerPropertiesOptions,
+) -> dict[str, Property]:
+    """NaN placeholder for every configured output, used when no conformer is selected."""
+    return {
+        f"{spec.property_name}{operation.output_suffix}": ScalarProperty(float("nan"))
+        for spec in options.properties
+        for operation in spec.operations
+    }
+
+
 def run_job(
     cpd_dir: compound_dir.CpdDir,
     options: AggregateConformerPropertiesOptions,
@@ -493,7 +504,10 @@ def run_job(
     for state_name in cpd_dir.registry_handler.get_registered_names():
         selected_files = select_result_files(cpd_dir, state_name, options.selection)
         if not selected_files:
-            _logger.warning(f"No conformers selected for state '{state_name}', skipping")
+            _logger.warning(
+                f"No conformers selected for state '{state_name}'; writing NaN aggregates"
+            )
+            cpd_dir.add_properties_to_molecule_csv(state_name, _nan_output_properties(options))
             continue
 
         mols = [cpd_dir.extract_mol(sdf_file) for sdf_file in selected_files]

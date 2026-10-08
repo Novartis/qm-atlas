@@ -159,6 +159,32 @@ def test_property_filter_keep_lowest(results_dir):
     assert row[f"{HOMO}_mean"] == pytest.approx(lowest_homo)
 
 
+def test_empty_selection_writes_nan(results_dir):
+    cpd_dir = compound_dir.create_cpd_dir(results_dir / "glycine")
+
+    main(
+        config=_make_config(
+            results_dir,
+            AggregateConformerPropertiesOptions(
+                # No conformer has an energy this high, so the filter selects none.
+                selection=ConformerSelection(
+                    property_filters=[PropertyFilter(property_name=ENERGY, min_value=1e9)]
+                ),
+                properties=[
+                    PropertyAggregationSpec(
+                        property_name=HOMO,
+                        operations=[MinAggregation(), MaxAggregation()],
+                    )
+                ],
+            ),
+        )
+    )
+
+    row = _molecule_row(cpd_dir)
+    assert np.isnan(row[f"{HOMO}_min"])
+    assert np.isnan(row[f"{HOMO}_max"])
+
+
 def test_reference_results_source(results_dir):
     cpd_dir = compound_dir.create_cpd_dir(results_dir / "glycine")
     ref_files = []
