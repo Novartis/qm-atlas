@@ -1,2 +1,2 @@
-VERSION = "0.1.0.dev1"
+VERSION = "0.1.0"
 TEST_VERSION = False
