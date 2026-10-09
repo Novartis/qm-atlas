@@ -1,0 +1,54 @@
+# Dry-run: build and publish qm_atlas to TestPyPI.
+#
+# This mirrors release.yml but targets TestPyPI (https://test.pypi.org) so the
+# full build + publish flow can be validated without consuming a real version
+# number on PyPI. It is triggered manually from the Actions tab.
+#
+name: Publish to TestPyPI (dry run)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/qm_atlas
+    permissions:
+      # Required for Trusted Publishing (OIDC); no token needed.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
