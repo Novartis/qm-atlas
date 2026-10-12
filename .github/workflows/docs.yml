@@ -3,13 +3,14 @@
 name: Documentation
 
 on:
-  # The multi-version site includes a build of the default branch, so rebuild on
-  # pushes to main as well as on new release tags.
+  # The multi-version build runs with full history and all tags, so a push to
+  # main already rebuilds every whitelisted tag (new release tags included).
+  # Deploying to the github-pages environment is only permitted from the default
+  # branch by its protection rules, so we do not trigger on tag pushes.
   push:
     branches: [main]
-    tags: ["v*"]
 
-  # Allow manual runs from the Actions tab.
+  # Allow manual runs from the Actions tab (e.g. to rebuild after a new tag).
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages.
