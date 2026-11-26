@@ -1,0 +1,30 @@
+## Gas-phase energies on conformers ALREADY registered in a qm-atlas results
+## directory (e.g. produced by fast_conformers), then populations and collection.
+## This does not import a raw SDF or generate/optimize conformers.
+##
+## To run this pipeline on existing conformers, use the following command,
+## which supplies the software configuration and results directory:
+##
+## qm-atlas pipeline --config cli_examples/psi4_energies.yaml \
+##   --software_config software_config.yaml --results_directory existing_results
+##
+## All steps run locally. Memory is per calculation, in MB, not per thread.
+
+steps:
+  - command: conformer_properties
+    n_cores: 2
+    conformer_property_options:
+      calculation_tasks:
+        - backend: psi4_single_point
+          method: pbe0
+          basis: def2-SVP
+          memory_mb: 512
+
+  - command: calculate_boltzmann_weights
+    boltzmann_options:
+      energy_property: psi4_total_energy
+      energy_unit: hartree
+      temperature: 298.15
+      relative_energy_unit: kcal/mol
+
+  - command: collect

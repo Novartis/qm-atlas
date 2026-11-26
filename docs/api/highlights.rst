@@ -55,6 +55,8 @@ Property calculation
 .. autofunction:: qm_atlas.tasks.calculate_properties.calculate_property_mol
    :no-index:
 
+.. autopydantic_model:: qm_atlas.tasks.calculate_properties.Psi4SinglePointOptions
+   :no-index:
 .. autopydantic_model:: qm_atlas.tasks.calculate_properties.XtbSinglePointOptions
    :no-index:
 .. autopydantic_model:: qm_atlas.tasks.calculate_properties.TurbomoleSinglePointOptions

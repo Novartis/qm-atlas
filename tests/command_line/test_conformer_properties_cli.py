@@ -22,6 +22,15 @@ def test_config_roundtrip_multi_backend(config_roundtrip):
                         "functional": ["b97-3c"],
                         "use_cosmo": False,
                     },
+                    {
+                        "backend": "psi4_single_point",
+                        "method": "pbe0",
+                        "basis": "def2-SVP",
+                        "reference": "uks",
+                        "multiplicity": 3,
+                        "memory_mb": 1024,
+                        "property_prefix": "pbe0_",
+                    },
                     {"backend": "turbomole_fukui_indices", "grid": "m4"},
                 ]
             }
@@ -31,6 +40,7 @@ def test_config_roundtrip_multi_backend(config_roundtrip):
     assert [t["backend"] for t in tasks] == [
         "xtb_single_point",
         "turbomole_single_point",
+        "psi4_single_point",
         "turbomole_fukui_indices",
     ]
 

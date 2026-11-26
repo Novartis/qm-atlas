@@ -204,6 +204,9 @@ it — copy one as a starting point and adapt it to your needs.
        NMR shieldings, a Jaguar calculation run on only the lowest-energy
        conformer, and Boltzmann-weighted aggregation. See
        :ref:`single-conformer-expensive`.
+   * - ``cli_examples/psi4_energies.yaml``
+     - Local gas-phase Psi4 energies on existing registered conformers, followed
+       by Boltzmann weighting and result collection.
    * - ``cli_examples/cocrystal_screening.yaml``
      - Standalone co-crystal screening on the ``.cosmo`` files in an existing
        results directory. See :ref:`screening-existing-results`.

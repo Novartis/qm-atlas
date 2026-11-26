@@ -24,6 +24,11 @@ software_environments:
         # commands:
         #     xtb: "/usr/local/bin/xtb"
 
+    psi4:
+        available: true
+        modulepaths: ["/path/to/add/to/MODULEPATH"]
+        module: "psi4/1.9.1"
+
     turbomole:
         available: true
         module: "cosmologic/2026"

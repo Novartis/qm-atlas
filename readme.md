@@ -54,6 +54,7 @@ The same functionality is available through the command-line interface and the P
 | Program | Capabilities |
 |---------|-------------|
 | xTB | Geometry optimization, single-point energy, Fukui indices, partial charges |
+| Psi4 | Gas-phase single-point HF/DFT energies on existing conformers |
 | Turbomole | Geometry optimization, single point energy, NMR shieldings, VCD, thermochemistry |
 | COSMOtherm | LogP, ΔG_solv, pKa, solubility, co-crystal screening, COSMO descriptors |
 | Jaguar | Quantum chemistry calculations supported by Schrödinger |

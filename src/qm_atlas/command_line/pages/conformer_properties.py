@@ -36,6 +36,7 @@ COMMAND = "qm-atlas conformer_properties"
 
 
 OPTIONS_REGISTRY = {
+    calculate_properties.PSI4_SP_KEY: calculate_properties.Psi4SinglePointOptions,
     calculate_properties.XTB_SP_KEY: calculate_properties.XtbSinglePointOptions,
     calculate_properties.TM_SP_KEY: calculate_properties.TurbomoleSinglePointOptions,
     calculate_properties.TM_FH_KEY: calculate_properties.TurbomoleFreehOptions,

@@ -23,6 +23,13 @@ xtb
    :members:
    :undoc-members:
 
+Psi4
+----
+
+.. automodule:: qm_atlas.wrappers.psi4
+   :members:
+   :undoc-members:
+
 Turbomole
 ---------
 

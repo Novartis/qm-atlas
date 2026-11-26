@@ -11,7 +11,7 @@ from rdkit import Chem
 from qm_atlas.constants import COSMO_OUTPUT_KEY, DEFAULT_SCR
 from qm_atlas.tasks.common import AtomBasedProperty, Property, ScalarProperty, TensorProperty
 from qm_atlas.tasks.utils.parallel import run_parallel
-from qm_atlas.wrappers import xtb
+from qm_atlas.wrappers import psi4, xtb
 from qm_atlas.wrappers.jaguar import bond_dissociation, qm_descriptors
 from qm_atlas.wrappers.turbomole import freeh, fukui, nmr_shielding, single_point, vcd
 from qm_atlas.wrappers.xtb import XTB_ENERGY_KEY, XTB_PROPERTY_TYPES
@@ -20,6 +20,7 @@ _logger = logging.getLogger(__name__)
 
 
 XTB_SP_KEY = "xtb_single_point"
+PSI4_SP_KEY = "psi4_single_point"
 TM_SP_KEY = "turbomole_single_point"
 TM_FH_KEY = "turbomole_freeh"
 TM_FUKUI_KEY = "turbomole_fukui_indices"
@@ -33,6 +34,7 @@ CALCULATOR_OPTIONS_EXCLUDE_KEYS = {"backend", "property_prefix"}
 
 CALCULATOR_REGISTRY = {
     XTB_SP_KEY: xtb.calculate_single_point,
+    PSI4_SP_KEY: psi4.calculate_single_point,
     TM_SP_KEY: single_point.run_ridft,
     TM_FH_KEY: freeh.calculate_freeh,
     TM_FUKUI_KEY: fukui.calculate_fukui,
@@ -135,6 +137,39 @@ class XtbSinglePointOptions(PropertyCalculatorOptions):
             type_dict[prop_name] = prop_type
 
         return type_dict
+
+
+class Psi4SinglePointOptions(PropertyCalculatorOptions):
+    """Gas-phase Psi4 HF/DFT energies on fixed conformers (Hartree)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backend: Literal["psi4_single_point"] = Field(
+        default=PSI4_SP_KEY, description="Type identifier for this calculator configuration"
+    )
+    method: str = Field(..., min_length=1, description="Psi4 method, e.g. hf or pbe0")
+    basis: str = Field(..., min_length=1, description="Basis set, e.g. def2-SVP")
+    multiplicity: int | None = Field(
+        default=None,
+        ge=1,
+        description="Spin multiplicity; defaults to radical electron count plus one",
+    )
+    reference: Literal["rhf", "uhf", "rohf", "rks", "uks"] | None = Field(
+        default=None,
+        description="SCF reference; inferred as RHF/UHF for HF and RKS/UKS for DFT",
+    )
+    memory_mb: int = Field(
+        default=512, gt=0, description="Memory allowance in MB per running calculation"
+    )
+
+    def get_property_prefix(self) -> str:
+        return self.property_prefix if self.property_prefix is not None else "psi4_"
+
+    def get_property_names(self) -> dict[str, str]:
+        return {psi4.ENERGY_KEY: f"{self.get_property_prefix()}{psi4.ENERGY_KEY}"}
+
+    def get_property_types(self) -> dict[str, type]:
+        return {name: ScalarProperty for name in self.get_property_names().values()}
 
 
 class TurbomoleSinglePointOptions(PropertyCalculatorOptions):
@@ -631,6 +666,7 @@ class JaguarQmDescriptorsOptions(PropertyCalculatorOptions):
 
 CONFIG_CLASS_REGISTRY = {
     XTB_SP_KEY: XtbSinglePointOptions,
+    PSI4_SP_KEY: Psi4SinglePointOptions,
     TM_SP_KEY: TurbomoleSinglePointOptions,
     TM_FH_KEY: TurbomoleFreehOptions,
     TM_FUKUI_KEY: TurbomoleFukuiOptions,
@@ -647,6 +683,7 @@ CONFIG_CLASS_REGISTRY = {
 # model_dump().
 CalculationConfig = Annotated[
     XtbSinglePointOptions
+    | Psi4SinglePointOptions
     | TurbomoleSinglePointOptions
     | TurbomoleFreehOptions
     | TurbomoleFukuiOptions
@@ -693,6 +730,7 @@ def calculate_property(
             The backend attribute determines which backend is used.
             Available config options are:
             - XtbSinglePointOptions for xtb single-point calculations
+            - Psi4SinglePointOptions for gas-phase Psi4 single-point energies
             - TurbomoleSinglePointOptions for turbomole single-point calculations
             - TurbomoleFreehOptions for turbomole freeh calculations
             - TurbomoleFukuiOptions for turbomole Fukui index calculations
